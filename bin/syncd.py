@@ -4,9 +4,7 @@ import logging
 import queue
 import time
 import yaml
-
-from dbb_buffer_mngr.scanner import Scanner
-from dbb_buffer_mngr.porter import Porter
+from dbb_buffer_mngr import Porter, Scanner, SCHEMA
 
 
 logger = logging.getLogger("syncd")
