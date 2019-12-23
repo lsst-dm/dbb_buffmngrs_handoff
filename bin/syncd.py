@@ -36,8 +36,10 @@ def set_logger(options=None):
     options : dict, optional
        Logging options. If None, default logging configuration will be used.
     """
-    level = logging.WARN
+    formatter = logging.Formatter(fmt="%(asctime)s:%(levelname)s:%(message)s")
     handler = logging.StreamHandler()
+    level = logging.WARN
+
     if options is not None:
         lvl = getattr(logging, options["loglevel"].upper(), None)
         if isinstance(lvl, int):
@@ -49,7 +51,9 @@ def set_logger(options=None):
             pass
         else:
             handler = logging.FileHandler(logfile)
+
     logger.setLevel(level)
+    handler.setFormatter(formatter)
     logger.addHandler(handler)
 
 
