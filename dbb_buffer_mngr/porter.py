@@ -1,10 +1,11 @@
 import collections
+import errno
+import getpass
 import logging
 import os
 import queue
 import subprocess
 import threading
-import time
 
 
 logger = logging.getLogger(__name__)
@@ -29,63 +30,105 @@ class Porter(threading.Thread):
     chunk_size : int, optional
         Number of files to transfer using single instance of scp,
         defaults to 10.
+    holding_area : basestring, optional
+        Path to move the files to once they were successfully transferred to
+        the remote location. Setting it to None (default), will leave them in
+        the untouched in the local buffer.
+
+    Raises
+    ------
+    ValueError
+        If destination is not of the from [user@]host:[path] or when
+        the specified holding area does not exist.
     """
 
-    def __init__(self, destination, queue, chunk_size=10):
+    def __init__(self, destination, queue, chunk_size=10, holding_area=None):
         threading.Thread.__init__(self)
-        self.dest = destination
+
+        try:
+            j = destination.index(":")
+        except ValueError as ex:
+            msg = "Destination '{dst}' does not look like a remote location; "
+            msg += "[user@]host:[path] form is required."
+            logger.critical(msg.format(dst=destination))
+            raise ex
+        i = None
+        try:
+            i = destination.index("@")
+        except ValueError as ex:
+            pass
+        user = getpass.getuser() if i is None else getpass.getuser()
+        host = destination[:j] if i is None else destination[i+1:j]
+        root = destination[j+1:]
+        self.dst = (user, host, root)
+
         self.queue = queue
         self.size = chunk_size
+
+        self.area = holding_area
+        if self.area is not None:
+            if not os.path.exists(self.area):
+                msg = "Holding area '{}' not found.".format(self.area)
+                logger.critical(msg)
+                raise ValueError(msg)
 
     def run(self):
         """Start transferring files enqueued in the transfer queue.
         """
-        i = self.dest.index("@")
-        j = self.dest.index(":")
-        user = self.dest[:i]
-        host = self.dest[i+1:j]
-        root = self.dest[j+1:]
-
+        user, host, root = self.dst
         while not self.queue.empty():
             chunk = []
             for _ in range(self.size):
                 try:
-                    head, tail = self.queue.get(block=False)
+                    topdir, subdir, file = self.queue.get(block=False)
                 except queue.Empty:
                     break
                 else:
-                    chunk.append((head, tail))
-            if chunk:
-                mapping = dict()
-                for head, tail in chunk:
-                    dirname, basename = os.path.split(tail)
-                    if not dirname:
-                        dirname = "."
-                    loc = Location(head, dirname)
-                    mapping.setdefault(loc, []).append(basename)
+                    chunk.append((topdir, subdir, file))
+            if not chunk:
+                continue
+            mapping = dict()
+            for topdir, subdir, file in chunk:
+                loc = Location(topdir, subdir)
+                mapping.setdefault(loc, []).append(file)
+            for loc, files in mapping.items():
+                head, tail = loc
+                src = os.path.join(head, tail)
+                dst = os.path.join(root, tail)
 
-                for loc, filenames in mapping.items():
-                    src = os.path.join(loc.head, loc.tail)
-                    dest = os.path.join(root, loc.tail)
-                    cmd = "ssh -l {} {} mkdir -p {}".format(user, host, dest)
-                    status = execute(cmd)
-                    if status != 0:
-                        msg = "Command '{cmd}' failed."
-                        logger.info(msg.format(cmd=cmd))
-                        # TODO: Do something if copying failed. Enqueue again?
-                        continue
+                # Create the directory at the remote location.
+                cmd = "ssh {u}@{h} mkdir -p {p}".format(u=user, h=host, p=dst)
+                status, stdout, stderr = execute(cmd)
+                if status != 0:
+                    msg = "Command '{cmd}' failed with error '{err}'"
+                    if status == errno.EREMOTEIO:
+                        if stderr.endswith("File exists"):
+                            pass
+                    logger.warning(msg.format(cmd=cmd, err=stderr))
+                    continue
 
-                    files = " ".join([os.path.join(src, n) for n in filenames])
-                    path = "{u}@{h}:{p}".format(u=user, h=host, p=dest)
-                    cmd = "scp -BCpq {} {}".format(files, path)
-                    status = execute(cmd)
-                    if status != 0:
-                        msg = "Command '{cmd}' failed."
-                        logger.warning(msg.format(cmd=files))
-                        # TODO: Do something if copying failed. Enqueue again?
-                chunk.clear()
+                # Transfer files to the remote location.
+                sources = [os.path.join(src, fn) for fn in files]
+                cmd = "scp -BCpq {f} {u}@{h}:{p}".format(f=" ".join(sources),
+                                                         u=user, h=host, p=dst)
+                status, stdout, stderr = execute(cmd)
+                if status != 0:
+                    msg = "Command '{cmd}' failed with error '{err}'"
+                    logger.warning(msg.format(cmd=cmd, err=stderr))
+                    continue
 
-            time.sleep(1)
+                # Move files to the holding area, if specified.
+                if self.area is None:
+                    continue
+                hld = os.path.join(self.area, tail)
+                destinations = [os.path.join(hld, fn) for fn in files]
+                for s, d in zip(sources, destinations):
+                    os.makedirs(hld, exist_ok=True)
+                    os.rename(s, d)
+                    try:
+                        os.rmdir(src)
+                    except OSError:
+                        pass
 
 
 def execute(cmd, timeout=None):
@@ -103,24 +146,17 @@ def execute(cmd, timeout=None):
     int
         Shell command exit status, 0 if successful, non-zero otherwise.
     """
-    status = 0
     args = cmd.split()
     opts = dict(capture_output=True, timeout=timeout, check=True, text=True)
     try:
         proc = subprocess.run(args, **opts)
     except subprocess.CalledProcessError as ex:
-        if args[0] == "mkdir":
-            if ex.stderr.endswith("File exists"):
-                msg = "Path '{path}' already exists on the remote site."
-                logger.info(msg.format(path=args[-1]))
-        else:
-            msg = "Command '{cmd}' failed: {err}"
-            logger.warning(msg.format(cmd=args, err=ex.stderr))
-            status = ex.returncode
+        status = errno.EREMOTEIO
+        stdout, stderr = ex.stdout, ex.stderr
     except subprocess.TimeoutExpired as ex:
-        msg = "Command '{cmd}' timed out after {time} seconds."
-        logger.warning(msg.format(cmd=args, time=ex.timeout))
-        status = 1
+        status = errno.ETIME
+        stdout, stderr = ex.stdout, ex.stderr
     else:
         status = proc.returncode
-    return status
+        stdout, stderr = proc.stdout, proc.stderr
+    return status, stdout, stderr

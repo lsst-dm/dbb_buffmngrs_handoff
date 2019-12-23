@@ -64,6 +64,7 @@ if __name__ == "__main__":
         filename = args.config
     with open(filename, "r") as f:
         config = yaml.safe_load(f)
+    logger.info("Configuration read from '{fn}'.".format(fn=filename))
 
     if args.validate:
         try:
@@ -80,98 +81,46 @@ if __name__ == "__main__":
     except KeyError:
         pass
     set_logger(options=logging_opts)
-    logger.info("Configuration read from '%s'." % filename)
 
-    options = config["options"]
-    delay = options["delay"]
+    logger.info("Starting...")
+
+    local = config["local"]
+    buffer = local["buffer"]
+    storage = local["storage"]
+
+    remote = config["remote"]
+    target = "{u}@{h}:{p}".format(u=remote["user"], h=remote["host"], p=remote["path"])
+
+    options = config["general"]
+    delay = options.get("delay", 1)
+    size = options.get("chunk_size", 10)
 
     # Initialize the transfer queue.
     files = queue.Queue()
 
-    logger.info("Starting...")
-
-    host = config["host"]
-    source = host["path"].rstrip(os.sep)
-    num = options["scanners"]
-
-    remote = config["remote"]
-    target = "%s@%s:%s" % (remote["user"], remote["host"], remote["path"])
-
-    previous = dict()
     while True:
-        paths = [os.path.join(source, p) for p in os.listdir(source)]
-        if not paths:
-            time.sleep(delay)
-            continue
-        dirs = [p for p in paths if os.path.isdir(p)]
-
-        # Create current snapshots of existing directories.
-        snapshots = queue.Queue()
-
+        # Scan source location for files.
         start = time.time()
-        batches = [dirs[i:i+num] for i in range(0, len(dirs), num)]
-        for batch in batches:
-            scanners = []
-            for path in batch:
-                s = Scanner(os.path.join(source, path), snapshots)
-                s.start()
-                scanners.append(s)
-            for s in scanners:
-                s.join()
-
-        current = dict()
-        while not snapshots.empty():
-            s = snapshots.get()
-            current[s.root] = s
+        s = Scanner(buffer, files)
+        s.start()
+        s.join()
         end = time.time()
         eta = end - start
-
-        msg = "Scan completed; "
-        msg += "no. of directories. : {num}, "
-        msg += "duration: {eta:.2f} sec."
-        logger.info(msg.format(num=len(current), eta=eta))
-
-        # Initialize file transfer queue.
-        files = queue.Queue()
-
-        # Process snapshots corresponding to completely new directories.
-        start = time.time()
-        new = set(current) - set(previous)
-        for head in new:
-            for path in current[head].paths:
-                tail = path.replace(head, "").lstrip("/")
-                files.put((head, tail))
-
-        # Compare snapshots of already existing directories.
-        old = set(current) & set(previous)
-        for head in old:
-            for path in current[head].diff(previous[head]):
-                tail = path.replace(head, "").lstrip("/")
-                files.put((head, tail))
-        end = time.time()
-        eta = end - start
-
-        msg = "Snapshots processed; "
-        msg += "no. of changed files : {num}, "
-        msg += "duration: {eta:.2f} sec."
-        logger.info(msg.format(num=files.qsize(), eta=eta))
+        msg = "Scan of {loc} completed in {eta:.2f} sec.: {num} files found."
+        logger.info(msg.format(loc=buffer, eta=eta, num=files.qsize()))
 
         # Transfer new files to designated location.
         start = time.time()
         porters = []
         for _ in range(options["porters"]):
-            p = Porter(target, files, chunk_size=options["chunk_size"])
+            p = Porter(target, files, chunk_size=size, holding_area=storage)
             p.start()
             porters.append(p)
         for p in porters:
             p.join()
-
-        previous = current
         end = time.time()
         eta = end - start
-
-        msg = "Transfer completed; "
-        msg += "duration: {eta:.2f} sec."
+        msg = "File transfer completed in {eta:.2f} sec."
         logger.info(msg.format(eta=eta))
 
         # Go to slumber for a given time interval.

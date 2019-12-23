@@ -1,20 +1,20 @@
 # Source location where the files reside.
-host:
-  path: /home/mxk/src
+local:
+  buffer: /home/mxk/tmp/src
+  storage: /home/mxk/tmp/hld
 
 # Target location where the files will be written to.
 remote:
   user: mxk
-  host: lsst-dev03.ncsa.illinois.edu
-  path: /home/mxk/dest
+  host: localhost
+  path: /home/mxk/tmp/dst
 
 # Logging options.
 logging:
 #  logfile: syncd.log
   loglevel: INFO
 
-options:
+general:
   chunk_size: 10
-  scanners: 2
-  porters: 2
-  delay: 60
+  porters: 1
+  delay: 10
