@@ -1,6 +1,7 @@
 import argparse
-import os
+import jsonschema
 import logging
+import os
 import queue
 import time
 import yaml
@@ -65,7 +66,13 @@ if __name__ == "__main__":
         config = yaml.safe_load(f)
 
     if args.validate:
-        pass
+        try:
+            jsonschema.validate(instance=config, schema=SCHEMA)
+        except jsonschema.ValidationError as ex:
+            msg = "Configuration error: {err}.".format(err=ex.message)
+            logging.critical(msg)
+            raise ValueError(msg)
+        logger.info("Configuration validated successfully.")
 
     logging_opts = None
     try:
