@@ -41,15 +41,13 @@ def set_logger(options=None):
     level = logging.WARN
 
     if options is not None:
-        lvl = getattr(logging, options["loglevel"].upper(), None)
+        loglevel = options.get("loglevel", "WARNING")
+        lvl = getattr(logging, loglevel.upper(), None)
         if isinstance(lvl, int):
             level = lvl
 
-        try:
-            logfile = options["logfile"]
-        except KeyError:
-            pass
-        else:
+        logfile = options.get("logfile", None)
+        if logfile is not None:
             handler = logging.FileHandler(logfile)
 
     logger.setLevel(level)
