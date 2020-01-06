@@ -57,7 +57,7 @@ class Porter(threading.Thread):
             i = destination.index("@")
         except ValueError as ex:
             pass
-        user = getpass.getuser() if i is None else getpass.getuser()
+        user = getpass.getuser() if i is None else destination[:i]
         host = destination[:j] if i is None else destination[i+1:j]
         root = destination[j+1:]
         self.dst = (user, host, root)
