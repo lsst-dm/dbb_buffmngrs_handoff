@@ -94,13 +94,10 @@ class Porter(object):
                 dst = os.path.join(root, tail)
 
                 # Create the directory at the remote location.
-                cmd = f"ssh {user}@{host} mkdir -p {dst}"
+                cmd = f"ssh -l {user} {host} mkdir -p {dst}"
                 status, stdout, stderr = execute(cmd)
                 if status != 0:
                     msg = f"Command '{cmd}' failed with error: '{stderr}'"
-                    if status == errno.EREMOTEIO:
-                        if stderr.endswith("File exists"):
-                            pass
                     logger.warning(msg)
                     continue
 
