@@ -155,4 +155,7 @@ def execute(cmd, timeout=None):
     else:
         status = proc.returncode
         stdout, stderr = proc.stdout, proc.stderr
+    msg = f"'{cmd}': execution finished "
+    msg += f"(status: {status}, output: '{stdout}', errors: '{stderr}')."
+    logger.debug(msg)
     return status, stdout, stderr

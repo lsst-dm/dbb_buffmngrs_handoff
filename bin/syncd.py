@@ -9,7 +9,7 @@ import yaml
 from dbb_buffer_mngr import Porter, Scanner, SCHEMA
 
 
-logger = logging.getLogger("syncd")
+logger = logging.getLogger("dbb_buffer_mngr")
 
 
 def parse_args():
@@ -36,7 +36,8 @@ def set_logger(options=None):
     options : dict, optional
        Logging options. If None, default logging configuration will be used.
     """
-    formatter = logging.Formatter(fmt="%(asctime)s:%(levelname)s:%(message)s")
+    msg = "%(asctime)s:%(name)s:%(levelname)s:%(message)s"
+    formatter = logging.Formatter(fmt=msg, datefmt=None)
     handler = logging.StreamHandler()
     level = logging.WARN
 
