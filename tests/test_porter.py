@@ -40,8 +40,7 @@ class PorterTestCase(unittest.TestCase):
 
     def testWithoutHoldingArea(self):
         p = Porter(self.loc, self.queue)
-        p.start()
-        p.join()
+        p.run()
 
         src = []
         for top, sub, names in os.walk(self.src):
@@ -58,8 +57,7 @@ class PorterTestCase(unittest.TestCase):
 
     def testWithHoldingArea(self):
         p = Porter(self.loc, self.queue, holding_area=self.hld)
-        p.start()
-        p.join()
+        p.run()
 
         src = []
         for top, sub, names in os.walk(self.src):

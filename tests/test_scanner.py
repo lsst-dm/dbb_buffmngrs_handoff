@@ -26,8 +26,7 @@ class ScannerTestCase(unittest.TestCase):
 
     def testEmptyDir(self):
         s = Scanner(self.root, self.queue)
-        s.start()
-        s.join()
+        s.run()
         self.assertEqual(self.queue.qsize(), 0)
 
     def testNonEmptyDir(self):
@@ -38,8 +37,7 @@ class ScannerTestCase(unittest.TestCase):
             os.close(fd)
 
         s = Scanner(self.root, self.queue)
-        s.start()
-        s.join()
+        s.run()
         self.assertEqual(self.queue.qsize(), 3)
 
 

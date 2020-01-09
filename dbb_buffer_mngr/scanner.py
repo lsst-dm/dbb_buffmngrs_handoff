@@ -1,22 +1,22 @@
 import logging
 import os
-import threading
 
 
 logger = logging.getLogger(__name__)
 
 
-class Scanner(threading.Thread):
-    """Class representing a directory scanner.
+class Scanner(object):
+    """Class representing a scanning command.
 
-    Once started, it scans a directory searching for files.
+    When run it scans a given directory searching for files.  All found files
+    are put in the provided queue.
 
     Parameters
     ----------
-    directory : string
+    directory : basestring
         A directory to scan.
     queue : queue.Queue
-        Place to add the produced snapshot.
+        Container where found files will be stored.
 
     Raises
     ------
@@ -25,7 +25,6 @@ class Scanner(threading.Thread):
     """
 
     def __init__(self, directory, queue):
-        threading.Thread.__init__(self)
         if not os.path.exists(directory) or not os.path.isdir(directory):
             raise ValueError("{}: directory not found.".format(directory))
         self.root = directory

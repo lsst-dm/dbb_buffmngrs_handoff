@@ -5,7 +5,6 @@ import logging
 import os
 import queue
 import subprocess
-import threading
 
 
 logger = logging.getLogger(__name__)
@@ -14,19 +13,19 @@ logger = logging.getLogger(__name__)
 Location = collections.namedtuple("Location", ["head", "tail"])
 
 
-class Porter(threading.Thread):
-    """Class representing a transfer thread.
+class Porter(object):
+    """Class representing a transfer command.
 
-    Once started, it keeps transferring the files found in the provided queue
+    When run it will attempt to transfer the files found in the provided queue
     to a remote location using 'scp' command.
 
     Parameters
     ----------
-    destination : string
+    destination : basestring
         Remote location where the files should be copied to specified
         as 'user@host:path'.
     queue : queue.Queue
-        List of files awaiting for transfer.
+        Files that need to be transferred.
     chunk_size : int, optional
         Number of files to transfer using single instance of scp,
         defaults to 10.
@@ -43,8 +42,6 @@ class Porter(threading.Thread):
     """
 
     def __init__(self, destination, queue, chunk_size=10, holding_area=None):
-        threading.Thread.__init__(self)
-
         try:
             j = destination.index(":")
         except ValueError as ex:

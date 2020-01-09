@@ -3,6 +3,7 @@ import jsonschema
 import logging
 import os
 import queue
+import threading
 import time
 import yaml
 from dbb_buffer_mngr import Porter, Scanner, SCHEMA
@@ -98,12 +99,12 @@ if __name__ == "__main__":
     # Initialize the transfer queue.
     files = queue.Queue()
 
+    scanner = Scanner(buffer, files)
+    porter = Porter(target, files, chunk_size=size, holding_area=storage)
     while True:
         # Scan source location for files.
         start = time.time()
-        s = Scanner(buffer, files)
-        s.start()
-        s.join()
+        scanner.run()
         end = time.time()
         eta = end - start
         msg = "Scan of {loc} completed in {eta:.2f} sec.: {num} files found."
@@ -111,13 +112,13 @@ if __name__ == "__main__":
 
         # Transfer new files to designated location.
         start = time.time()
-        porters = []
+        threads = []
         for _ in range(options["porters"]):
-            p = Porter(target, files, chunk_size=size, holding_area=storage)
-            p.start()
-            porters.append(p)
-        for p in porters:
-            p.join()
+            t = threading.Thread(target=porter.run)
+            t.start()
+            threads.append(t)
+        for t in threads:
+            t.join()
         end = time.time()
         eta = end - start
         msg = "File transfer completed in {eta:.2f} sec."
