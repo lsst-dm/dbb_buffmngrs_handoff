@@ -65,13 +65,13 @@ if __name__ == "__main__":
         filename = args.config
     with open(filename, "r") as f:
         config = yaml.safe_load(f)
-    logger.info("Configuration read from '{fn}'.".format(fn=filename))
+    logger.info(f"Configuration read from '{filename}'.")
 
     if args.validate:
         try:
             jsonschema.validate(instance=config, schema=SCHEMA)
         except jsonschema.ValidationError as ex:
-            msg = "Configuration error: {err}.".format(err=ex.message)
+            msg = f"Configuration error: {ex.message}."
             logging.critical(msg)
             raise ValueError(msg)
         logger.info("Configuration validated successfully.")
@@ -90,7 +90,10 @@ if __name__ == "__main__":
     storage = local["storage"]
 
     remote = config["remote"]
-    target = "{u}@{h}:{p}".format(u=remote["user"], h=remote["host"], p=remote["path"])
+    user = remote["user"]
+    host = remote["host"]
+    path = remote["path"]
+    destination = f"{user}@{host}:{path}"
 
     options = config["general"]
     delay = options.get("delay", 1)
@@ -100,15 +103,15 @@ if __name__ == "__main__":
     files = queue.Queue()
 
     scanner = Scanner(buffer, files)
-    porter = Porter(target, files, chunk_size=size, holding_area=storage)
+    porter = Porter(destination, files, chunk_size=size, holding_area=storage)
     while True:
         # Scan source location for files.
         start = time.time()
         scanner.run()
         end = time.time()
         eta = end - start
-        msg = "Scan of {loc} completed in {eta:.2f} sec.: {num} files found."
-        logger.info(msg.format(loc=buffer, eta=eta, num=files.qsize()))
+        logger.info(f"Scan of {buffer} completed in {eta:.2f} sec.")
+        logger.debug(f"Number of files found: {files.qsize()}.")
 
         # Transfer new files to designated location.
         start = time.time()
@@ -121,9 +124,8 @@ if __name__ == "__main__":
             t.join()
         end = time.time()
         eta = end - start
-        msg = "File transfer completed in {eta:.2f} sec."
-        logger.info(msg.format(eta=eta))
+        logger.info(f"File transfer completed in {eta:.2f} sec.")
 
         # Go to slumber for a given time interval.
-        logger.info("Next scan in {} sec.".format(delay))
+        logger.info(f"Next scan in {delay} sec.")
         time.sleep(delay)

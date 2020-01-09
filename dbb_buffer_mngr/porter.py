@@ -45,10 +45,10 @@ class Porter(object):
         try:
             j = destination.index(":")
         except ValueError as ex:
-            msg = "Destination '{dst}' does not look like a remote location; "
+            msg = f"Invalid remote location: '{destination}'; "
             msg += "[user@]host:[path] form is required."
-            logger.critical(msg.format(dst=destination))
-            raise ex
+            logger.critical(msg)
+            raise ValueError(msg)
         i = None
         try:
             i = destination.index("@")
@@ -65,7 +65,7 @@ class Porter(object):
         self.area = holding_area
         if self.area is not None:
             if not os.path.exists(self.area):
-                msg = "Holding area '{}' not found.".format(self.area)
+                msg = f"Holding area '{self.area}' not found."
                 logger.critical(msg)
                 raise ValueError(msg)
 
@@ -94,24 +94,23 @@ class Porter(object):
                 dst = os.path.join(root, tail)
 
                 # Create the directory at the remote location.
-                cmd = "ssh {u}@{h} mkdir -p {p}".format(u=user, h=host, p=dst)
+                cmd = f"ssh {user}@{host} mkdir -p {dst}"
                 status, stdout, stderr = execute(cmd)
                 if status != 0:
-                    msg = "Command '{cmd}' failed with error '{err}'"
+                    msg = f"Command '{cmd}' failed with error: '{stderr}'"
                     if status == errno.EREMOTEIO:
                         if stderr.endswith("File exists"):
                             pass
-                    logger.warning(msg.format(cmd=cmd, err=stderr))
+                    logger.warning(msg)
                     continue
 
                 # Transfer files to the remote location.
                 sources = [os.path.join(src, fn) for fn in files]
-                cmd = "scp -BCpq {f} {u}@{h}:{p}".format(f=" ".join(sources),
-                                                         u=user, h=host, p=dst)
+                cmd = f"scp -BCpq {' '.join(sources)} {user}@{host}:{dst}"
                 status, stdout, stderr = execute(cmd)
                 if status != 0:
-                    msg = "Command '{cmd}' failed with error '{err}'"
-                    logger.warning(msg.format(cmd=cmd, err=stderr))
+                    msg = f"Command '{cmd}' failed with error: '{stderr}'"
+                    logger.warning(msg)
                     continue
 
                 # Move files to the holding area, if specified.

@@ -26,7 +26,7 @@ class Scanner(object):
 
     def __init__(self, directory, queue):
         if not os.path.exists(directory) or not os.path.isdir(directory):
-            raise ValueError("{}: directory not found.".format(directory))
+            raise ValueError(f"{directory}: directory not found.")
         self.root = directory
         self.queue = queue
 
