@@ -1,28 +1,29 @@
 SCHEMA = {
     "type": "object",
     "properties": {
-        "local": {
+        "handoff": {
             "type": "object",
             "properties": {
                 "buffer": {"type": "string"},
-                "storage": {"type": "string"}
+                "holding": {"type": "string"}
             },
-            "required": ["buffer", "storage"]
+            "required": ["buffer", "holding"]
         },
-        "remote": {
+        "endpoint": {
             "type": "object",
             "properties": {
                 "user": {"type": "string"},
                 "host": {"type": "string"},
-                "path": {"type": "string"}
+                "buffer": {"type": "string"},
+                "staging": {"type": "string"}
             },
-            "required": ["user", "host", "path"]
+            "required": ["user", "host", "buffer", "staging"]
         },
         "logging": {
             "type": "object",
             "properties": {
-                "logfile": {"type": "string"},
-                "loglevel": {
+                "file": {"type": "string"},
+                "level": {
                     "type": "string",
                     "enum": ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
                 },
@@ -46,5 +47,5 @@ SCHEMA = {
             }
         }
     },
-    "required": ["local", "remote"]
+    "required": ["handoff", "endpoint"]
 }

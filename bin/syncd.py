@@ -6,7 +6,7 @@ import queue
 import threading
 import time
 import yaml
-from dbb_buffer_mngr import Porter, Scanner, SCHEMA
+import dbb_buffer_mngr as mgr
 
 
 logger = logging.getLogger("dbb_buffer_mngr")
@@ -28,37 +28,41 @@ def parse_args():
     return parser.parse_args()
 
 
-def set_logger(options=None):
+def set_logger(settings=None):
     """Configure logger.
 
     Parameters
     ----------
-    options : dict, optional
-       Logging options. If None, default logging configuration will be used.
+    settings : dict, optional
+       Logger settings. If None (default), default settings will be used.
     """
-    msg = "%(asctime)s:%(name)s:%(levelname)s:%(message)s"
-    formatter = logging.Formatter(fmt=msg, datefmt=None)
-    handler = logging.StreamHandler()
-    level = logging.WARN
+    default_settings = {
+        "file": None,
+        "format": "%(asctime)s:%(name)s:%(levelname)s:%(message)s",
+        "level": "WARNING",
+    }
+    if settings is None:
+        settings = default_settings
 
-    if options is not None:
-        loglevel = options.get("loglevel", "WARNING")
-        lvl = getattr(logging, loglevel.upper(), None)
-        if isinstance(lvl, int):
-            level = lvl
-
-        logfile = options.get("logfile", None)
-        if logfile is not None:
-            handler = logging.FileHandler(logfile)
-
+    level_name = settings.get("level", default_settings["level"])
+    level = getattr(logging, level_name.upper(), logging.WARNING)
     logger.setLevel(level)
-    handler.setFormatter(formatter)
+
+    handler = logging.StreamHandler()
+    logfile = settings.get("file", default_settings["file"])
+    if logfile is not None:
+        handler = logging.FileHandler(logfile)
     logger.addHandler(handler)
+
+    fmt = settings.get("format", default_settings["format"])
+    formatter = logging.Formatter(fmt=fmt, datefmt=None)
+    handler.setFormatter(formatter)
 
 
 if __name__ == "__main__":
     args = parse_args()
 
+    # Read provided configuration or use the default one.
     if args.config is None:
         root = os.getcwd()
         filename = os.path.join(root, "etc/syncd.yml")
@@ -66,66 +70,75 @@ if __name__ == "__main__":
         filename = args.config
     with open(filename, "r") as f:
         config = yaml.safe_load(f)
-    logger.info(f"Configuration read from '{filename}'.")
 
+    # Validate configuration, if requested.
     if args.validate:
         try:
-            jsonschema.validate(instance=config, schema=SCHEMA)
+            jsonschema.validate(instance=config, schema=mgr.SCHEMA)
         except jsonschema.ValidationError as ex:
-            msg = f"Configuration error: {ex.message}."
-            logging.critical(msg)
-            raise ValueError(msg)
-        logger.info("Configuration validated successfully.")
+            raise ValueError(f"Configuration error: {ex.message}.")
 
-    logging_opts = None
-    try:
-        logging_opts = config["logging"]
-    except KeyError:
-        pass
-    set_logger(options=logging_opts)
+    # Set up a logger.
+    logger_settings = config.get("logging", None)
+    set_logger(settings=logger_settings)
+    logger.info(f"Configuration read from '{filename}'.")
 
     logger.info("Starting...")
 
-    local = config["local"]
-    buffer = local["buffer"]
-    storage = local["storage"]
+    handoff = config["handoff"]
+    endpoint = config["endpoint"]
 
-    remote = config["remote"]
-    user = remote["user"]
-    host = remote["host"]
-    path = remote["path"]
-    destination = f"{user}@{host}:{path}"
+    default_options = {
+        "chunk_size": 1,
+        "timeout": None,
+        "pause": 1,
+        "transfer_pool": 1,
+    }
+    options = config.get("general", None)
+    if options is None:
+        options = default_options
+    delay = options.get("pause", default_options["pause"])
+    chunk_size = options.get("chunk_size", default_options["chunk_size"])
+    timeout = options.get("timeout", default_options["timeout"])
+    pool_size = options.get("transfer_pool", default_options["transfer_pool"])
 
-    options = config["general"]
-    delay = options.get("delay", 1)
-    size = options.get("chunk_size", 10)
-
-    # Initialize the transfer queue.
-    files = queue.Queue()
-
-    scanner = Scanner(buffer, files)
-    porter = Porter(destination, files, chunk_size=size, holding_area=storage)
+    awaiting = queue.Queue()
+    completed = queue.Queue()
+    scanner = mgr.Scanner(handoff, awaiting)
+    cleaner = mgr.Cleaner(handoff, completed)
+    porter = mgr.Porter(endpoint, awaiting, completed,
+                        chunk_size=chunk_size, timeout=timeout)
+    wiper = mgr.Wiper(endpoint)
     while True:
         # Scan source location for files.
         start = time.time()
         scanner.run()
         end = time.time()
         eta = end - start
-        logger.info(f"Scan of {buffer} completed in {eta:.2f} sec.")
-        logger.debug(f"Number of files found: {files.qsize()}.")
+        logger.info(f"Scan completed in {eta:.2f} sec.")
+        logger.debug(f"Number of files found: {awaiting.qsize()}.")
 
-        # Transfer new files to designated location.
+        # Copy files to a remote location.
         start = time.time()
         threads = []
-        for _ in range(options["porters"]):
+        for _ in range(pool_size):
             t = threading.Thread(target=porter.run)
             t.start()
             threads.append(t)
         for t in threads:
             t.join()
+        wiper.run()
         end = time.time()
         eta = end - start
         logger.info(f"File transfer completed in {eta:.2f} sec.")
+        logger.debug(f"Number of files transferred: {completed.qsize()}.")
+
+        # Move copied files to a holding area.
+        start = time.time()
+        cleaner.run()
+        end = time.time()
+        eta = end - start
+        logger.info(f"Cleaning completed in {eta:.2f} sec.")
 
         # Go to slumber for a given time interval.
         logger.info(f"Next scan in {delay} sec.")

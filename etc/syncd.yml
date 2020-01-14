@@ -1,20 +1,23 @@
 # Source location where the files reside.
-local:
-  buffer: /home/mxk/tmp/src
-  storage: /home/mxk/tmp/hld
+handoff:
+  buffer: /home/mxk/tmp/buffer
+  holding: /home/mxk/tmp/holding
 
 # Target location where the files will be written to.
-remote:
+endpoint:
   user: mxk
-  host: localhost
-  path: /home/mxk/tmp/dst
+  host: lsst-dev
+  buffer: /home/mxk/tmp/buffer
+  staging: /home/mxk/tmp/staging
 
 # Logging options.
-logging:
-#  logfile: syncd.log
-  loglevel: INFO
+#logging:
+# file: syncd.log
+# level: WARNING
 
-general:
-  chunk_size: 10
-  porters: 1
-  delay: 10
+# General options.
+#general:
+#  chunk_size: 1
+#  timeout: None
+#  transfer_pool: 1
+#  pause: 1

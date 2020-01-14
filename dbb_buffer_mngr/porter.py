@@ -1,6 +1,5 @@
 import collections
 import errno
-import getpass
 import logging
 import os
 import queue
@@ -21,18 +20,17 @@ class Porter(object):
 
     Parameters
     ----------
-    destination : basestring
-        Remote location where the files should be copied to specified
-        as 'user@host:path'.
-    queue : queue.Queue
+    config : dict
+        Configuration of the endpoint where files should be transferred to.
+    awaiting : queue.Queue
         Files that need to be transferred.
+    completed : queue.Queue
+        Files that were transferred successfully.
     chunk_size : int, optional
-        Number of files to transfer using single instance of scp,
-        defaults to 10.
-    holding_area : basestring, optional
-        Path to move the files to once they were successfully transferred to
-        the remote location. Setting it to None (default), will leave them in
-        the untouched in the local buffer.
+        Number of files to transfer using a single scp call, defaults to 1.
+    timeout : int, optional
+        Time (in seconds) after which the child process executing a bash command
+        will be terminated. Defaults to None which means
 
     Raises
     ------
@@ -41,49 +39,38 @@ class Porter(object):
         the specified holding area does not exist.
     """
 
-    def __init__(self, destination, queue, chunk_size=10, holding_area=None):
-        try:
-            j = destination.index(":")
-        except ValueError as ex:
-            msg = f"Invalid remote location: '{destination}'; "
-            msg += "[user@]host:[path] form is required."
+    def __init__(self, config, awaiting, completed, chunk_size=1, timeout=None):
+        required = {"user", "host", "buffer", "staging"}
+        missing = required - set(config)
+        if missing:
+            msg = f"Invalid configuration: {', '.join(missing)} not provided."
             logger.critical(msg)
             raise ValueError(msg)
-        i = None
-        try:
-            i = destination.index("@")
-        except ValueError as ex:
-            pass
-        user = getpass.getuser() if i is None else destination[:i]
-        host = destination[:j] if i is None else destination[i+1:j]
-        root = destination[j+1:]
-        self.dst = (user, host, root)
 
-        self.queue = queue
+        self.dest = (config["user"], config["host"], config["buffer"])
+        self.temp = config["staging"]
         self.size = chunk_size
+        self.time = timeout
 
-        self.area = holding_area
-        if self.area is not None:
-            if not os.path.exists(self.area):
-                msg = f"Holding area '{self.area}' not found."
-                logger.critical(msg)
-                raise ValueError(msg)
+        self.todo = awaiting
+        self.done = completed
 
     def run(self):
         """Start transferring files enqueued in the transfer queue.
         """
-        user, host, root = self.dst
-        while not self.queue.empty():
+        user, host, root = self.dest
+        while not self.todo.empty():
             chunk = []
             for _ in range(self.size):
                 try:
-                    topdir, subdir, file = self.queue.get(block=False)
+                    topdir, subdir, file = self.todo.get(block=False)
                 except queue.Empty:
                     break
                 else:
                     chunk.append((topdir, subdir, file))
             if not chunk:
                 continue
+
             mapping = dict()
             for topdir, subdir, file in chunk:
                 loc = Location(topdir, subdir)
@@ -92,36 +79,74 @@ class Porter(object):
                 head, tail = loc
                 src = os.path.join(head, tail)
                 dst = os.path.join(root, tail)
+                tmp = os.path.join(self.temp, tail)
 
-                # Create the directory at the remote location.
-                cmd = f"ssh -l {user} {host} mkdir -p {dst}"
-                status, stdout, stderr = execute(cmd)
+                # Create the directories at the remote location.
+                cmd = f"ssh {user}@{host} mkdir -p {dst} {tmp}"
+                status, stdout, stderr = execute(cmd, timeout=self.time)
                 if status != 0:
                     msg = f"Command '{cmd}' failed with error: '{stderr}'"
                     logger.warning(msg)
                     continue
 
-                # Transfer files to the remote location.
+                # Transfer files to the remote staging area.
                 sources = [os.path.join(src, fn) for fn in files]
-                cmd = f"scp -BCpq {' '.join(sources)} {user}@{host}:{dst}"
-                status, stdout, stderr = execute(cmd)
+                cmd = f"scp -BCpq {' '.join(sources)} {user}@{host}:{tmp}"
+                status, stdout, stderr = execute(cmd, timeout=self.time)
                 if status != 0:
                     msg = f"Command '{cmd}' failed with error: '{stderr}'"
                     logger.warning(msg)
                     continue
 
-                # Move files to the holding area, if specified.
-                if self.area is None:
-                    continue
-                hld = os.path.join(self.area, tail)
-                destinations = [os.path.join(hld, fn) for fn in files]
-                for s, d in zip(sources, destinations):
-                    os.makedirs(hld, exist_ok=True)
-                    os.rename(s, d)
-                    try:
-                        os.rmdir(src)
-                    except OSError:
-                        pass
+                # Move successfully transferred files to the final location.
+                for fn in files:
+                    s = os.path.join(tmp, fn)
+                    d = os.path.join(dst, fn)
+                    cmd = f"ssh {user}@{host} mv {s} {d}"
+                    status, stdout, stderr = execute(cmd, timeout=self.time)
+                    if status != 0:
+                        msg = f"Command '{cmd}' failed with error: '{stderr}'"
+                        logger.warning(msg)
+                        continue
+                    self.done.put((head, tail, fn))
+
+
+class Wiper(object):
+    """Class representing a cleanup command.
+
+    When invoked the command will remove all empty directories at a given
+    location.
+
+    Parameters
+    ----------
+    config : dict
+        Configuration of the endpoint where .
+
+    Raises
+    ------
+    ValueError
+        If location specification is invalid.
+    """
+
+    def __init__(self, config, timeout=None):
+        required = {"user", "host", "staging"}
+        missing = required - set(config)
+        if missing:
+            msg = f"Invalid configuration: {', '.join(missing)} not provided."
+            logger.critical(msg)
+            raise ValueError(msg)
+        self.dest = (config["user"], config["host"], config["staging"])
+        self.time = timeout
+
+    def run(self):
+        """Remove empty directories at a given remote location.
+        """
+        user, host, path = self.dest
+        cmd = f"ssh {user}@{host} find {path} -type d -empty -mindepth 1 -delete"
+        status, stdout, stderr = execute(cmd, timeout=self.time)
+        if status != 0:
+            msg = f"Command '{cmd}' failed with error: '{stderr}'"
+            logger.warning(msg)
 
 
 def execute(cmd, timeout=None):
@@ -139,6 +164,8 @@ def execute(cmd, timeout=None):
     int
         Shell command exit status, 0 if successful, non-zero otherwise.
     """
+    logger.debug(f"Executing {cmd}.")
+
     args = cmd.split()
     opts = dict(capture_output=True, timeout=timeout, check=True, text=True)
     try:
@@ -152,7 +179,7 @@ def execute(cmd, timeout=None):
     else:
         status = proc.returncode
         stdout, stderr = proc.stdout, proc.stderr
-    msg = f"'{cmd}': execution finished "
-    msg += f"(status: {status}, output: '{stdout}', errors: '{stderr}')."
-    logger.debug(msg)
+
+    msg = f"(status: {status}, output: '{stdout}', errors: '{stderr}')."
+    logger.debug("Finished " + msg)
     return status, stdout, stderr

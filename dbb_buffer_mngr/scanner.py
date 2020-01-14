@@ -13,10 +13,10 @@ class Scanner(object):
 
     Parameters
     ----------
-    directory : basestring
-        A directory to scan.
+    config : dict
+        Scanner configuration.
     queue : queue.Queue
-        Container where found files will be stored.
+        Container where the files found in the given directory will be stored.
 
     Raises
     ------
@@ -24,14 +24,18 @@ class Scanner(object):
         If provided path does not exist or is not a directory.
     """
 
-    def __init__(self, directory, queue):
-        if not os.path.exists(directory) or not os.path.isdir(directory):
-            raise ValueError(f"{directory}: directory not found.")
-        self.root = directory
+    def __init__(self, config, queue):
+        try:
+            path = config["buffer"]
+        except KeyError:
+            raise ValueError("Buffer not specified.")
+        if not os.path.exists(path) or not os.path.isdir(path):
+            raise ValueError(f"{path}: directory not found.")
+        self.root = path
         self.queue = queue
 
     def run(self):
-        """Scan a directory to find files.
+        """Scan recursively the directory to find all files it contains.
         """
         paths = []
         for topdir, subdir, filenames in os.walk(self.root):
