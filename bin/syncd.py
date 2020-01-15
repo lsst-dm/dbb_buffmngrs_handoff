@@ -61,6 +61,21 @@ def set_logger(settings=None):
     handler.setFormatter(formatter)
 
 
+def background_thread(cmd, pause=1):
+    """Run command in the background.
+
+    Parameters
+    ----------
+    cmd :
+        Command to run in the background
+    pause : int, optional
+        Amount of seconds to pause between consecutive executions of the command.
+    """
+    while True:
+        cmd.run()
+        time.sleep(pause)
+
+
 if __name__ == "__main__":
     args = parse_args()
 
@@ -106,11 +121,18 @@ if __name__ == "__main__":
 
     awaiting = queue.Queue()
     completed = queue.Queue()
+
     scanner = mgr.Scanner(handoff, awaiting)
     cleaner = mgr.Cleaner(handoff, completed)
     porter = mgr.Porter(endpoint, awaiting, completed,
                         chunk_size=chunk_size, timeout=timeout)
     wiper = mgr.Wiper(endpoint)
+
+    daemon = threading.Thread(target=background_thread,
+                              args=(cleaner,), kwargs=dict(pause=delay),
+                              daemon=True)
+    daemon.start()
+
     while True:
         # Scan source location for files.
         start = time.time()
@@ -134,13 +156,6 @@ if __name__ == "__main__":
         eta = end - start
         logger.info(f"File transfer completed in {eta:.2f} sec.")
         logger.debug(f"Number of files transferred: {completed.qsize()}.")
-
-        # Move copied files to a holding area.
-        start = time.time()
-        cleaner.run()
-        end = time.time()
-        eta = end - start
-        logger.info(f"Cleaning completed in {eta:.2f} sec.")
 
         # Go to slumber for a given time interval.
         logger.info(f"Next scan in {delay} sec.")
