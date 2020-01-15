@@ -1,18 +1,18 @@
 # Source location where the files reside.
 handoff:
-  buffer: /home/mxk/tmp/buffer
-  holding: /home/mxk/tmp/holding
+  buffer: /data/buffer
+  holding: /data/holding
 
 # Target location where the files will be written to.
 endpoint:
   user: mxk
-  host: lsst-dev
-  buffer: /home/mxk/tmp/buffer
-  staging: /home/mxk/tmp/staging
+  host: lsst-dev03.ncsa.illinois.edu
+  buffer: /data/buffer
+  staging: /data/staging
 
 # Logging options.
 #logging:
-# file: syncd.log
+# file: transd.log
 # level: WARNING
 
 # General options.
