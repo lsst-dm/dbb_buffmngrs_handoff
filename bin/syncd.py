@@ -151,7 +151,8 @@ if __name__ == "__main__":
             threads.append(t)
         for t in threads:
             t.join()
-        wiper.run()
+        if completed.qsize() != 0:
+            wiper.run()
         end = time.time()
         eta = end - start
         logger.info(f"File transfer completed in {eta:.2f} sec.")
