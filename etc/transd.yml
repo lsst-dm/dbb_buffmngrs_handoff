@@ -1,9 +1,9 @@
-# Source location where the files reside.
+# Handoff location (i.e. where the files are written to).
 handoff:
   buffer: /data/buffer
   holding: /data/holding
 
-# Target location where the files will be written to.
+# Ingest service location (i.e. where the files will be transferred to)
 endpoint:
   user: mxk
   host: lsst-dev03.ncsa.illinois.edu
