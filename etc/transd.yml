@@ -12,6 +12,7 @@ endpoint:
 
 # Logging options.
 #logging:
+# format: %(asctime)s:%(name)s:%(levelname)s:%(message)s
 # file: transd.log
 # level: WARNING
 
