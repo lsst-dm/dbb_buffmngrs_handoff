@@ -64,9 +64,13 @@ class Mover(object):
         try:
             path = config["holding"]
         except KeyError:
-            raise ValueError("Holding area not specified.")
+            msg = "Holding area not specified."
+            logger.critical(msg)
+            raise ValueError(msg)
         if not os.path.exists(path) or not os.path.isdir(path):
-            raise ValueError(f"{path}: directory not found.")
+            msg = f"{path}: directory not found."
+            logger.critical(msg)
+            raise ValueError(msg)
         self.root = path
         self.queue = queue
 
