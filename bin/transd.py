@@ -146,8 +146,8 @@ if __name__ == "__main__":
         scanner.run()
         end = time.time()
         eta = end - start
-        logger.info(f"Scan completed in {eta:.2f} sec.")
-        logger.debug(f"Number of files found: {awaiting.qsize()}.")
+        logger.info(f"Scan completed: {awaiting.qsize()} file(s) found.")
+        logger.debug(f"Scan completed in {eta:.2f} sec.")
 
         # Copy files to a remote location.
         if awaiting.qsize() != 0:
