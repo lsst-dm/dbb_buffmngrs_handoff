@@ -1,6 +1,6 @@
-import contextlib
 import logging
 import os
+import time
 
 
 logger = logging.getLogger(__name__)
@@ -47,13 +47,13 @@ class Scanner(object):
             self.queue.put((self.root, dirname, filename))
 
 
-class Cleaner(object):
-    """Class representing a clean up command.
+class Mover(object):
+    """Command moving files between the buffer and the holding area.
 
     Parameters
     ----------
     config : dict
-        Cleaner configuration
+        Configuration of the handoff site.
     queue : queue.Queue
         Container where the files need to be moved are stored.
 
@@ -74,7 +74,7 @@ class Cleaner(object):
         self.queue = queue
 
     def run(self):
-        """Moves files from the buffer to the holding area.
+        """Move files from the buffer to the holding area.
         """
         while not self.queue.empty():
             topdir, subdir, file = self.queue.get(block=False)
@@ -82,26 +82,76 @@ class Cleaner(object):
             src = os.path.join(topdir, subdir, file)
             dst = os.path.join(self.root, subdir, file)
             os.rename(src, dst)
-            with cd(topdir):
-                try:
-                    os.removedirs(subdir)
-                except OSError:
-                    logger.debug(f"Directory '{subdir}' not empty.")
-                    pass
 
 
-@contextlib.contextmanager
-def cd(new):
-    """Change current working directory.
+class Eraser(object):
+    """Command removing empty directories from the holding area.
 
     Parameters
     ----------
-    new : string
-        Directory to change to.
+    config : dict
+        Configuration of the handoff site.
+
+    Raises
+    ------
+    ValueError
+       If holding area is not specified or it does not exist.
     """
-    old = os.getcwd()
-    os.chdir(new)
-    try:
-        yield
-    finally:
-        os.chdir(old)
+
+    def __init__(self, config, exp_time=86400):
+        try:
+            path = config["buffer"]
+        except KeyError:
+            msg = "Buffer not specified."
+            logger.critical(msg)
+            raise ValueError(msg)
+        if not os.path.exists(path) or not os.path.isdir(path):
+            msg = f"{path}: directory not found."
+            logger.critical(msg)
+            raise ValueError(msg)
+        self.root = path
+        self.exp_time = exp_time
+
+    def run(self):
+        """Remove empty directories older than a given time.
+        """
+        empty_dirs = []
+        for topdir, subdirs, files in os.walk(self.root, topdown=False):
+            for name in subdirs:
+                path = os.path.join(topdir, name)
+                if len(os.listdir(path)) == 0:
+                    empty_dirs.append(path)
+        logger.debug(f"Empty directories found: '{empty_dirs}'.")
+
+        now = time.time()
+        for path in empty_dirs:
+            stat_info = os.stat(path)
+            mod_time = stat_info.st_mtime
+            duration = now - mod_time
+            if duration > self.exp_time:
+                os.rmdir(path)
+                logger.debug(f"Directory '{path}' removed successfully.")
+
+
+class Cleaner(object):
+    """Macro command.
+    """
+
+    def __init__(self):
+        self.cmds = []
+
+    def add(self, cmd):
+        """Add a command to the macro.
+
+        Parameters
+        ----------
+        cmd : Command
+            A command to execute.
+        """
+        self.cmds.append(cmd)
+
+    def run(self):
+        """Execute macro.
+        """
+        for cmd in self.cmds:
+            cmd.run()

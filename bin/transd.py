@@ -110,20 +110,27 @@ if __name__ == "__main__":
         "timeout": None,
         "pause": 1,
         "transfer_pool": 1,
+        "expiration_time": 86400
     }
     options = config.get("general", None)
-    if options is None:
-        options = default_options
-    delay = options.get("pause", default_options["pause"])
-    chunk_size = options.get("chunk_size", default_options["chunk_size"])
-    timeout = options.get("timeout", default_options["timeout"])
-    pool_size = options.get("transfer_pool", default_options["transfer_pool"])
+    if options is not None:
+        settings.update(options)
+    delay = settings["pause"]
+    chunk_size = settings["chunk_size"]
+    timeout = settings["timeout"]
+    pool_size = settings["transfer_pool"]
+    exp_time = settings["expiration_time"]
 
     awaiting = queue.Queue()
     completed = queue.Queue()
 
     scanner = mgr.Scanner(handoff, awaiting)
-    cleaner = mgr.Cleaner(handoff, completed)
+    mover = mgr.Mover(handoff, completed)
+    eraser = mgr.Eraser(handoff, exp_time=exp_time)
+    cleaner = mgr.Cleaner()
+    cleaner.add(mover)
+    cleaner.add(eraser)
+
     porter = mgr.Porter(endpoint, awaiting, completed,
                         chunk_size=chunk_size, timeout=timeout)
     wiper = mgr.Wiper(endpoint)

@@ -20,4 +20,5 @@ endpoint:
 #  chunk_size: 1
 #  timeout: None
 #  transfer_pool: 1
+#  expiration_time: 86400
 #  pause: 1
