@@ -7,15 +7,12 @@ logger = logging.getLogger(__name__)
 
 
 class Scanner(object):
-    """Class representing a scanning command.
-
-    When run it scans a given directory searching for files.  All found files
-    are put in the provided queue.
+    """Command finding out all files in a given directory tree.
 
     Parameters
     ----------
     config : dict
-        Scanner configuration.
+        Configuration of the handoff site.
     queue : queue.Queue
         Container where the files found in the given directory will be stored.
 

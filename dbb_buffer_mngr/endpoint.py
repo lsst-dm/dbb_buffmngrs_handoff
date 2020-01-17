@@ -13,10 +13,7 @@ Location = collections.namedtuple("Location", ["head", "tail"])
 
 
 class Porter(object):
-    """Class representing a transfer command.
-
-    When run it will attempt to transfer the files found in the provided queue
-    to a remote location using 'scp' command.
+    """Command transferring files to a remote location.
 
     Parameters
     ----------
@@ -27,7 +24,8 @@ class Porter(object):
     completed : queue.Queue
         Files that were transferred successfully.
     chunk_size : int, optional
-        Number of files to transfer using a single scp call, defaults to 1.
+        Number of files to process in a single iteration of the transfer loop,
+        defaults to 1.
     timeout : int, optional
         Time (in seconds) after which the child process executing a bash command
         will be terminated. Defaults to None which means
@@ -56,7 +54,7 @@ class Porter(object):
         self.done = completed
 
     def run(self):
-        """Start transferring files enqueued in the transfer queue.
+        """Transfer files to a remote location.
         """
         user, host, root = self.dest
         while not self.todo.empty():
@@ -120,7 +118,7 @@ class Wiper(object):
     Parameters
     ----------
     config : dict
-        Configuration of the endpoint where .
+        Configuration of the endpoint where empty directories should be removed.
 
     Raises
     ------
