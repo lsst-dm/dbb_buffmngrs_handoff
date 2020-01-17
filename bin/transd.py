@@ -127,7 +127,7 @@ if __name__ == "__main__":
     scanner = mgr.Scanner(handoff, awaiting)
     mover = mgr.Mover(handoff, completed)
     eraser = mgr.Eraser(handoff, exp_time=exp_time)
-    cleaner = mgr.Cleaner()
+    cleaner = mgr.Macro()
     cleaner.add(mover)
     cleaner.add(eraser)
 

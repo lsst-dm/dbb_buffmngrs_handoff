@@ -1,12 +1,13 @@
 import logging
 import os
 import time
+from .command import Command
 
 
 logger = logging.getLogger(__name__)
 
 
-class Scanner(object):
+class Scanner(Command):
     """Command finding out all files in a given directory tree.
 
     Parameters
@@ -44,7 +45,7 @@ class Scanner(object):
             self.queue.put((self.root, dirname, filename))
 
 
-class Mover(object):
+class Mover(Command):
     """Command moving files between the buffer and the holding area.
 
     Parameters
@@ -85,7 +86,7 @@ class Mover(object):
             os.rename(src, dst)
 
 
-class Eraser(object):
+class Eraser(Command):
     """Command removing empty directories from the holding area.
 
     Parameters
@@ -132,27 +133,3 @@ class Eraser(object):
             if duration > self.exp_time:
                 os.rmdir(path)
                 logger.debug(f"Directory '{path}' removed successfully.")
-
-
-class Cleaner(object):
-    """Macro command.
-    """
-
-    def __init__(self):
-        self.cmds = []
-
-    def add(self, cmd):
-        """Add a command to the macro.
-
-        Parameters
-        ----------
-        cmd : Command
-            A command to execute.
-        """
-        self.cmds.append(cmd)
-
-    def run(self):
-        """Execute macro.
-        """
-        for cmd in self.cmds:
-            cmd.run()

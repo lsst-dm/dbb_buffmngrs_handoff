@@ -4,6 +4,7 @@ import logging
 import os
 import queue
 import subprocess
+from .command import Command
 
 
 logger = logging.getLogger(__name__)
@@ -12,7 +13,7 @@ logger = logging.getLogger(__name__)
 Location = collections.namedtuple("Location", ["head", "tail"])
 
 
-class Porter(object):
+class Porter(Command):
     """Command transferring files to a remote location.
 
     Parameters
@@ -109,7 +110,7 @@ class Porter(object):
                     self.done.put((head, tail, fn))
 
 
-class Wiper(object):
+class Wiper(Command):
     """Class representing a cleanup command.
 
     When invoked the command will remove all empty directories at a given
