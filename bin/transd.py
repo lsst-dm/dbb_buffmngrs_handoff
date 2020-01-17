@@ -150,20 +150,21 @@ if __name__ == "__main__":
         logger.debug(f"Number of files found: {awaiting.qsize()}.")
 
         # Copy files to a remote location.
-        start = time.time()
-        threads = []
-        for _ in range(pool_size):
-            t = threading.Thread(target=porter.run)
-            t.start()
-            threads.append(t)
-        for t in threads:
-            t.join()
-        if completed.qsize() != 0:
-            wiper.run()
-        end = time.time()
-        eta = end - start
-        logger.info(f"File transfer completed in {eta:.2f} sec.")
-        logger.debug(f"Number of files transferred: {completed.qsize()}.")
+        if awaiting.qsize() != 0:
+            start = time.time()
+            threads = []
+            for _ in range(pool_size):
+                t = threading.Thread(target=porter.run)
+                t.start()
+                threads.append(t)
+            for t in threads:
+                t.join()
+            if completed.qsize() != 0:
+                wiper.run()
+            end = time.time()
+            eta = end - start
+            logger.info(f"Processing completed: {completed.qsize()} file(s) transferred.")
+            logger.debug(f"Processing completed in {eta:.2f} sec.")
 
         # Go to slumber for a given time interval.
         logger.info(f"Next scan in {delay} sec.")
