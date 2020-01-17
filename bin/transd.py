@@ -30,33 +30,33 @@ def parse_args():
     return parser.parse_args()
 
 
-def set_logger(settings=None):
+def set_logger(options=None):
     """Configure logger.
 
     Parameters
     ----------
-    settings : dict, optional
+    options : dict, optional
        Logger settings. If None (default), default settings will be used.
     """
-    default_settings = {
+    settings = {
         "file": None,
         "format": "%(asctime)s:%(name)s:%(levelname)s:%(message)s",
         "level": "WARNING",
     }
-    if settings is None:
-        settings = default_settings
+    if options is not None:
+        settings.update(options)
 
-    level_name = settings.get("level", default_settings["level"])
+    level_name = settings["level"]
     level = getattr(logging, level_name.upper(), logging.WARNING)
     logger.setLevel(level)
 
     handler = logging.StreamHandler()
-    logfile = settings.get("file", default_settings["file"])
+    logfile = settings["file"]
     if logfile is not None:
         handler = logging.FileHandler(logfile)
     logger.addHandler(handler)
 
-    fmt = settings.get("format", default_settings["format"])
+    fmt = settings["format"]
     formatter = logging.Formatter(fmt=fmt, datefmt=None)
     handler.setFormatter(formatter)
 
@@ -96,8 +96,8 @@ if __name__ == "__main__":
             raise ValueError(f"Configuration error: {ex.message}.")
 
     # Set up a logger.
-    logger_settings = config.get("logging", None)
-    set_logger(settings=logger_settings)
+    logger_options = config.get("logging", None)
+    set_logger(options=logger_options)
     logger.info(f"Configuration read from '{filename}'.")
 
     logger.info("Starting...")
@@ -105,16 +105,16 @@ if __name__ == "__main__":
     handoff = config["handoff"]
     endpoint = config["endpoint"]
 
-    default_options = {
+    settings = {
         "chunk_size": 1,
         "timeout": None,
         "pause": 1,
         "transfer_pool": 1,
         "expiration_time": 86400
     }
-    options = config.get("general", None)
-    if options is not None:
-        settings.update(options)
+    general_options = config.get("general", None)
+    if general_options is not None:
+        settings.update(general_options)
     delay = settings["pause"]
     chunk_size = settings["chunk_size"]
     timeout = settings["timeout"]
