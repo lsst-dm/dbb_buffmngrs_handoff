@@ -1,79 +1,66 @@
+import getpass
 import os
 import queue
 import shutil
 import tempfile
 import unittest
-from dbb_buffer_mngr.porter import Porter
+from dbb_buffer_mngr import Porter
 
 
 class PorterTestCase(unittest.TestCase):
-    """Test file porter.
+    """Test the command transferring files between handoff and endpoint sites.
     """
 
     def setUp(self):
         self.src = tempfile.mkdtemp()
         self.dst = tempfile.mkdtemp()
-        self.hld = tempfile.mkdtemp()
-        self.loc = "localhost:{}".format(self.dst)
-
+        self.stg = tempfile.mkdtemp()
+        self.user = getpass.getuser()
+        self.host = "localhost"
         sub = tempfile.mkdtemp(dir=self.src)
         src = dict([tempfile.mkstemp(dir=self.src)])
         src.update(dict(tempfile.mkstemp(dir=sub) for _ in range(2)))
         for fd in src:
             os.close(fd)
 
-        self.queue = queue.Queue()
+        self.todo = queue.Queue()
         for path in src.values():
-            tail = path.replace(self.src, "").lstrip(os.sep)
-            dn, fn = os.path.split(tail)
-            self.queue.put((self.src, dn, fn))
+            tail = os.path.relpath(path, start=self.src)
+            dn, bn = os.path.split(tail)
+            self.todo.put((self.src, dn, bn))
+        self.done = queue.Queue()
 
     def tearDown(self):
         shutil.rmtree(self.src)
         shutil.rmtree(self.dst)
-        shutil.rmtree(self.hld)
+        shutil.rmtree(self.stg)
 
-    def testInvalidHoldingArea(self):
-        args = [self.loc, self.queue]
-        kwargs = {"holding_area": "/not/a/path"}
-        self.assertRaises(ValueError, Porter, *args, **kwargs)
+    def testInvalidConfig(self):
+        config = dict()
+        args = [config, self.todo, self.done]
+        self.assertRaises(ValueError, Porter, *args)
 
-    def testWithoutHoldingArea(self):
-        p = Porter(self.loc, self.queue)
-        p.run()
+        config = dict(buffer=self.src, staging=self.stg)
+        args = [config, self.todo, self.done]
+        self.assertRaises(ValueError, Porter, *args)
 
-        src = []
-        for top, sub, names in os.walk(self.src):
+        config = dict(buffer=self.src, staging=self.stg, user=self.user)
+        args = [config, self.todo, self.done]
+        self.assertRaises(ValueError, Porter, *args)
+
+    def testTransfer(self):
+        config = dict(buffer=self.dst, staging=self.stg, user=self.user, host=self.host)
+        cmd = Porter(config, self.todo, self.done)
+        cmd.run()
+
+        src = set()
+        for top, subs, names in os.walk(self.src):
             for name in names:
-                src.append(os.path.join(top, name))
-        src = set([p.replace(self.src, "").lstrip(os.sep) for p in src])
-        dst = []
-        for top, sub, names in os.walk(self.dst):
+                src.add(name)
+        dst = set()
+        for top, subs, names in os.walk(self.dst):
             for name in names:
-                dst.append(os.path.join(top, name))
-        dst = set([p.replace(self.dst, "").lstrip(os.sep) for p in dst])
+                dst.add(name)
         self.assertEqual(src, dst)
-        self.assertEqual(self.queue.qsize(), 0)
-
-    def testWithHoldingArea(self):
-        p = Porter(self.loc, self.queue, holding_area=self.hld)
-        p.run()
-
-        src = []
-        for top, sub, names in os.walk(self.src):
-            for name in names:
-                src.append(os.path.join(top, name))
-        src = set([p.replace(self.src, "").lstrip(os.sep) for p in src])
-        dst = []
-        for top, sub, names in os.walk(self.dst):
-            for name in names:
-                dst.append(os.path.join(top, name))
-        dst = set([p.replace(self.dst, "").lstrip(os.sep) for p in dst])
-        hld = []
-        for top, sub, names in os.walk(self.hld):
-            for name in names:
-                hld.append(os.path.join(top, name))
-        hld = set([p.replace(self.hld, "").lstrip(os.sep) for p in hld])
-        self.assertEqual(dst, hld)
-        self.assertEqual(src, set())
-        self.assertEqual(self.queue.qsize(), 0)
+        self.assertEqual(self.todo.qsize(), 0)
+        self.assertEqual(self.done.qsize(), 3)
