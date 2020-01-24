@@ -28,7 +28,7 @@ class Scanner(Command):
             path = config["buffer"]
         except KeyError:
             raise ValueError("Buffer not specified.")
-        if not os.path.exists(path) or not os.path.isdir(path):
+        if not os.path.isdir(path):
             raise ValueError(f"{path}: directory not found.")
         self.root = path
         self.queue = queue
@@ -36,13 +36,12 @@ class Scanner(Command):
     def run(self):
         """Scan recursively the directory to find all files it contains.
         """
-        paths = []
-        for topdir, subdir, filenames in os.walk(self.root):
-            paths.extend([os.path.join(topdir, f) for f in filenames])
-        for path in paths:
-            tail = path.replace(self.root, "").lstrip(os.sep)
-            dirname, filename = os.path.split(tail)
-            self.queue.put((self.root, dirname, filename))
+        for topdir, subdirs, filenames in os.walk(self.root):
+            for name in filenames:
+                path = os.path.join(topdir, name)
+                tail = os.path.relpath(path, start=self.root)
+                dirname, basename = os.path.split(tail)
+                self.queue.put((self.root, dirname, basename))
 
 
 class Mover(Command):
@@ -68,7 +67,7 @@ class Mover(Command):
             msg = "Holding area not specified."
             logger.critical(msg)
             raise ValueError(msg)
-        if not os.path.exists(path) or not os.path.isdir(path):
+        if not os.path.isdir(path):
             msg = f"{path}: directory not found."
             logger.critical(msg)
             raise ValueError(msg)
@@ -107,7 +106,7 @@ class Eraser(Command):
             msg = "Buffer not specified."
             logger.critical(msg)
             raise ValueError(msg)
-        if not os.path.exists(path) or not os.path.isdir(path):
+        if not os.path.isdir(path):
             msg = f"{path}: directory not found."
             logger.critical(msg)
             raise ValueError(msg)
@@ -131,5 +130,9 @@ class Eraser(Command):
             mod_time = stat_info.st_mtime
             duration = now - mod_time
             if duration > self.exp_time:
-                os.rmdir(path)
-                logger.debug(f"Directory '{path}' removed successfully.")
+                try:
+                    os.rmdir(path)
+                except (FileNotFoundError, OSError) as ex:
+                    logger.warning(f"Cannot remove '{path}': {ex}")
+                else:
+                    logger.debug(f"Directory '{path}' removed successfully.")
