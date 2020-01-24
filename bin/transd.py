@@ -36,8 +36,12 @@ def set_logger(options=None):
     Parameters
     ----------
     options : dict, optional
-       Logger settings. If None (default), default settings will be used.
+       Logger settings. The key/value pairs it contains will be used to
+       override corresponding default settings.  If empty or None (default),
+       logger will be set up with default settings.
     """
+    # Define default settings for the logger. They will be overridden with
+    # values found in 'options', if specified.
     settings = {
         "file": None,
         "format": "%(asctime)s:%(name)s:%(levelname)s:%(message)s",
@@ -62,14 +66,15 @@ def set_logger(options=None):
 
 
 def background_thread(cmd, pause=1):
-    """Run command in the background.
+    """Run a command in the background, repeatedly.
 
     Parameters
     ----------
-    cmd :
-        Command to run in the background
+    cmd : Command
+        The command to run in the background
     pause : int, optional
-        Amount of seconds to pause between consecutive executions of the command.
+        Amount of seconds to pause between consecutive executions of the
+        command.
     """
     while True:
         cmd.run()
@@ -105,6 +110,26 @@ if __name__ == "__main__":
     handoff = config["handoff"]
     endpoint = config["endpoint"]
 
+    # Initialize runtime settings.
+    #
+    # chunk_size
+    #     Maximal number of files being processes by a transfer thread during
+    #     a single session.
+    #
+    # timeout
+    #     Number of seconds after which the subprocess executing a shell
+    #     command # will be terminated.
+    #
+    # pause
+    #     Number of seconds both the main thread and any daemon thread will
+    #     spent idling after their session finished.
+    #
+    # transfer_pool
+    #     Number of transfer threads to run concurrently.
+    #
+    # expiration_time
+    #     Number of seconds that need to pass from their last modification
+    #     before empty directories in the handoff buffer can be removed.
     settings = {
         "chunk_size": 1,
         "timeout": None,
@@ -145,9 +170,9 @@ if __name__ == "__main__":
         start = time.time()
         scanner.run()
         end = time.time()
-        eta = end - start
+        duration = end - start
         logger.info(f"Scan completed: {awaiting.qsize()} file(s) found.")
-        logger.debug(f"Scan completed in {eta:.2f} sec.")
+        logger.debug(f"Scan completed in {duration:.2f} sec.")
 
         # Copy files to a remote location.
         if awaiting.qsize() != 0:
@@ -162,9 +187,9 @@ if __name__ == "__main__":
             if completed.qsize() != 0:
                 wiper.run()
             end = time.time()
-            eta = end - start
+            duration = end - start
             logger.info(f"Processing completed: {completed.qsize()} file(s) transferred.")
-            logger.debug(f"Processing completed in {eta:.2f} sec.")
+            logger.debug(f"Processing completed in {duration:.2f} sec.")
 
         # Go to slumber for a given time interval.
         logger.info(f"Next scan in {delay} sec.")

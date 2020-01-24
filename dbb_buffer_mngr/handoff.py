@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 class Scanner(Command):
-    """Command finding out all files in a given directory tree.
+    """Command finding out all files in the buffer on the handoff site.
 
     Parameters
     ----------
@@ -86,12 +86,19 @@ class Mover(Command):
 
 
 class Eraser(Command):
-    """Command removing empty directories from the holding area.
+    """Command removing empty directories from the buffer.
+
+    To avoid possible race condition between the application writing files to
+    the buffer and the command itself, empty directories are removed only if
+    they were not modified for a certain period of time.
 
     Parameters
     ----------
     config : dict
         Configuration of the handoff site.
+    exp_time : int
+        Time (in seconds) that need to pass from the last modification before
+        an empty directory can be removed.
 
     Raises
     ------
@@ -114,7 +121,7 @@ class Eraser(Command):
         self.exp_time = exp_time
 
     def run(self):
-        """Remove empty directories older than a given time.
+        """Remove old, empty directories from the buffer.
         """
         empty_dirs = []
         for topdir, subdirs, files in os.walk(self.root, topdown=False):

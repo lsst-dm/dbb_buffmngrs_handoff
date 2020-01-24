@@ -14,7 +14,12 @@ Location = collections.namedtuple("Location", ["head", "tail"])
 
 
 class Porter(Command):
-    """Command transferring files to a remote location.
+    """Command transferring files between handoff and endpoint sites.
+
+    To make file transfers look like atomic operations, files are not placed
+    in directly in the buffer, but are initially transferred to a separate
+    location on the endpoint site, a staging area.  Once the transfer of a
+    file is finished, it is moved to the buffer.
 
     Parameters
     ----------
@@ -25,17 +30,16 @@ class Porter(Command):
     completed : queue.Queue
         Files that were transferred successfully.
     chunk_size : int, optional
-        Number of files to process in a single iteration of the transfer loop,
-        defaults to 1.
+        Number of files to process in a single iteration of the transfer
+        loop, defaults to 1.
     timeout : int, optional
-        Time (in seconds) after which the child process executing a bash command
-        will be terminated. Defaults to None which means
+        Time (in seconds) after which the child process executing a bash
+        command will be terminated. Defaults to None which means
 
     Raises
     ------
     ValueError
-        If destination is not of the from [user@]host:[path] or when
-        the specified holding area does not exist.
+        If endpoint's specification is invalid.
     """
 
     def __init__(self, config, awaiting, completed, chunk_size=1, timeout=None):
@@ -55,7 +59,7 @@ class Porter(Command):
         self.done = completed
 
     def run(self):
-        """Transfer files to a remote location.
+        """Transfer files to the endpoint site.
         """
         user, host, root = self.dest
         while not self.todo.empty():
@@ -111,20 +115,18 @@ class Porter(Command):
 
 
 class Wiper(Command):
-    """Class representing a cleanup command.
-
-    When invoked the command will remove all empty directories at a given
-    location.
+    """Command removing empty directories from the staging area.
 
     Parameters
     ----------
     config : dict
-        Configuration of the endpoint where empty directories should be removed.
+        Configuration of the endpoint where empty directories should be
+        removed.
 
     Raises
     ------
     ValueError
-        If location specification is invalid.
+        If endpoint's specification is invalid.
     """
 
     def __init__(self, config, timeout=None):
@@ -138,7 +140,7 @@ class Wiper(Command):
         self.time = timeout
 
     def run(self):
-        """Remove empty directories at a given remote location.
+        """Remove empty directories from the staging area.
         """
         user, host, path = self.dest
         cmd = f"ssh {user}@{host} find {path} -type d -empty -mindepth 1 -delete"

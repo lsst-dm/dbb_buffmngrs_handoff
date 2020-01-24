@@ -36,6 +36,8 @@ class PorterTestCase(unittest.TestCase):
         shutil.rmtree(self.stg)
 
     def testInvalidConfig(self):
+        """Test if Porter complains about an invalid configurations.
+        """
         config = dict()
         args = [config, self.todo, self.done]
         self.assertRaises(ValueError, Porter, *args)
@@ -48,7 +50,9 @@ class PorterTestCase(unittest.TestCase):
         args = [config, self.todo, self.done]
         self.assertRaises(ValueError, Porter, *args)
 
-    def testTransfer(self):
+    def testRun(self):
+        """Test if Porter transfers files between handoff and endpoint sites.
+        """
         config = dict(buffer=self.dst, staging=self.stg, user=self.user, host=self.host)
         cmd = Porter(config, self.todo, self.done)
         cmd.run()

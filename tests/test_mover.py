@@ -29,15 +29,22 @@ class MoverTestCase(unittest.TestCase):
         shutil.rmtree(self.dst)
 
     def testInvalidConfig(self):
+        """Test if Mover complains about an invalid configuration.
+        """
         config = dict()
         args = [config, self.queue]
         self.assertRaises(ValueError, Mover, *args)
 
+    def testInvalidBuffer(self):
+        """Test if Mover complains about a non-existing buffer.
+        """
         config = dict(holding="/not/a/path")
         args = [config, self.queue]
         self.assertRaises(ValueError, Mover, *args)
 
     def testRun(self):
+        """Test if Mover moves files as expected.
+        """
         config = dict(holding=self.dst)
         cmd = Mover(config, self.queue)
         cmd.run()

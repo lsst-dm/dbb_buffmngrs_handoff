@@ -19,22 +19,30 @@ class ScannerTestCase(unittest.TestCase):
         shutil.rmtree(self.root)
 
     def testInvalidConfig(self):
+        """Test if Scanner complains about an invalid configuration.
+        """
         config = dict()
         args = [config, self.queue]
         self.assertRaises(ValueError, Scanner, *args)
 
     def testInvalidBuffer(self):
+        """Test if Scanner complains about a non-existing buffer.
+        """
         config = dict(buffer="/not/a/path")
         args = [config, self.queue]
         self.assertRaises(ValueError, Scanner, *args)
 
     def testEmptyDir(self):
+        """Test if Scanner handles empty directories correctly.
+        """
         config = dict(buffer=self.root)
         s = Scanner(config, self.queue)
         s.run()
         self.assertEqual(self.queue.qsize(), 0)
 
     def testNonEmptyDir(self):
+        """Test if Scanner finds all files in a directory.
+        """
         leaf = tempfile.mkdtemp(dir=self.root)
         files = dict([tempfile.mkstemp(dir=self.root)])
         files.update(dict(tempfile.mkstemp(dir=leaf) for _ in range(2)))
@@ -45,11 +53,3 @@ class ScannerTestCase(unittest.TestCase):
         s = Scanner(config, self.queue)
         s.run()
         self.assertEqual(self.queue.qsize(), 3)
-
-
-
-
-
-
-
-

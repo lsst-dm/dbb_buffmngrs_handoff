@@ -17,16 +17,22 @@ class EraserTestCase(unittest.TestCase):
         shutil.rmtree(self.dir)
 
     def testInvalidConfig(self):
+        """Test if Eraser complains about invalid configuration.
+        """
         config = dict()
         args = [config]
         self.assertRaises(ValueError, Eraser, *args)
 
     def testInvalidBuffer(self):
+        """Test if Eraser complains about a non-existing buffer.
+        """
         config = dict(buffer="/not/a/path")
         args = [config]
         self.assertRaises(ValueError, Eraser, *args)
 
     def testNonExpiredDir(self):
+        """Test if Eraser does not remove a non-expired directory.
+        """
         subdir = tempfile.mkdtemp(dir=self.dir)
 
         config = dict(buffer=self.dir)
@@ -40,6 +46,8 @@ class EraserTestCase(unittest.TestCase):
         self.assertEqual(len(dirs), 1)
 
     def testExpiredDir(self):
+        """Test if Eraser removes an expired directory.
+        """
         subdir = tempfile.mkdtemp(dir=self.dir)
         time.sleep(2)
 
@@ -54,6 +62,8 @@ class EraserTestCase(unittest.TestCase):
         self.assertEqual(len(dirs), 0)
 
     def testNonEmptyDir(self):
+        """Test if Eraser does not remove a non-empty directory.
+        """
         subdir = tempfile.mkdtemp(dir=self.dir)
         files = dict([tempfile.mkstemp(dir=subdir) for _ in range(2)])
         for fd in files:
