@@ -81,8 +81,8 @@ if __name__ == "__main__":
 
     # Read provided configuration or use the default one.
     if args.config is None:
-        root = os.getcwd()
-        filename = os.path.join(root, "etc/transd.yml")
+        root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
+        filename = os.path.normpath(os.path.join(root, "etc/transd.yml"))
     else:
         filename = args.config
     with open(filename, "r") as f:
