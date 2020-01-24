@@ -3,6 +3,7 @@ import errno
 import logging
 import os
 import queue
+import shlex
 import subprocess
 from .command import Command
 
@@ -167,7 +168,7 @@ def execute(cmd, timeout=None):
     """
     logger.debug(f"Executing {cmd}.")
 
-    args = cmd.split()
+    args = shlex.split(cmd)
     opts = dict(capture_output=True, timeout=timeout, check=True, text=True)
     try:
         proc = subprocess.run(args, **opts)
