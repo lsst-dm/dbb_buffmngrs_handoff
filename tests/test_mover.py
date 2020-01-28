@@ -24,7 +24,7 @@ import queue
 import shutil
 import tempfile
 import unittest
-from dbb_buffer_mngr import Mover
+from lsst.dbb.buffer.mngr import Mover
 
 
 class MoverTestCase(unittest.TestCase):

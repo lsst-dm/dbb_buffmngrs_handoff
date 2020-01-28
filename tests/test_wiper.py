@@ -24,7 +24,7 @@ import os
 import shutil
 import tempfile
 import unittest
-from dbb_buffer_mngr import Wiper
+from lsst.dbb.buffer.mngr import Wiper
 
 
 class WiperTestCase(unittest.TestCase):

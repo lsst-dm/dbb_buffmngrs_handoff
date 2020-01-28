@@ -29,7 +29,7 @@ import queue
 import threading
 import time
 import yaml
-import dbb_buffer_mngr as mgr
+import lsst.dbb.buffer.mngr as mgr
 
 
 logger = logging.getLogger("dbb_buffer_mngr")

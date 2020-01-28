@@ -19,7 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from dbb_buffer_mngr.command import Macro
-from dbb_buffer_mngr.endpoint import Porter, Wiper
-from dbb_buffer_mngr.handoff import Scanner, Mover, Eraser
-from dbb_buffer_mngr.schema import SCHEMA
+from .command import Macro
+from .endpoint import Porter, Wiper
+from .handoff import Scanner, Mover, Eraser
+from .schema import SCHEMA

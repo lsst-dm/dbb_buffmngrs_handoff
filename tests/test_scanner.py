@@ -25,7 +25,7 @@ import queue
 import shutil
 import tempfile
 import unittest
-from dbb_buffer_mngr import Scanner
+from lsst.dbb.buffer.mngr import Scanner
 
 
 class ScannerTestCase(unittest.TestCase):
