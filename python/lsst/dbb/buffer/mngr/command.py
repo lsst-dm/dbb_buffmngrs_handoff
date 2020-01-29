@@ -26,12 +26,14 @@ class Command(abc.ABC):
     """Class representing a command.
     """
 
-    @abc.abstractmethod
-    def run(self):
-        pass
-
     def __str__(self):
         return type(self).__name__
+
+    @abc.abstractmethod
+    def run(self):
+        """Execute the command.
+        """
+        pass
 
 
 class Macro(Command):

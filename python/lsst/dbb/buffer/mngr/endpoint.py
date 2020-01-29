@@ -56,7 +56,8 @@ class Porter(Command):
         loop, defaults to 1.
     timeout : int, optional
         Time (in seconds) after which the child process executing a bash
-        command will be terminated. Defaults to None which means
+        command will be terminated. If None (default), the command will wait
+        indefinitely for the child process to complete.
 
     Raises
     ------
@@ -144,6 +145,10 @@ class Wiper(Command):
     config : dict
         Configuration of the endpoint where empty directories should be
         removed.
+    timeout : int, optional
+        Time (in seconds) after which the child process executing a bash
+        command will be terminated. If None (default), the command will wait
+        indefinitely for the child process to complete.
 
     Raises
     ------
@@ -177,15 +182,17 @@ def execute(cmd, timeout=None):
 
     Parameters
     ----------
-    cmd : str
+    cmd : basestring
         String representing the command, its options and arguments.
     timeout : int, optional
-        Time (in seconds) after the child process will be killed.
+        Time (in seconds) after which the child process executing a bash
+        command will be terminated. If None (default), the command will wait
+        indefinitely for the child process to complete.
 
     Returns
     -------
-    int
-        Shell command exit status, 0 if successful, non-zero otherwise.
+    (int, basestring, basestring)
+        Shell command exit status, stdout, and stderr
     """
     logger.debug(f"Executing {cmd}.")
 

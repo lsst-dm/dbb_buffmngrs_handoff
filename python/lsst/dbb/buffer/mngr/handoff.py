@@ -41,7 +41,7 @@ class Scanner(Command):
     Raises
     ------
     ValueError
-        If provided path does not exist or is not a directory.
+        If buffer is not specified, does not exists, or is not a directory.
     """
 
     def __init__(self, config, queue):
@@ -78,7 +78,7 @@ class Mover(Command):
     Raises
     ------
     ValueError
-       If holding area is not specified or it does not exist.
+       If holding area is not specified, does not exist, or is not a directory.
     """
 
     def __init__(self, config, queue):
