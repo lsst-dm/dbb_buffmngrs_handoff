@@ -102,7 +102,9 @@ def background_thread(cmd, pause=1):
         time.sleep(pause)
 
 
-if __name__ == "__main__":
+def main():
+    """Application entry point.
+    """
     args = parse_args()
 
     # Read provided configuration or use the default one.
@@ -125,11 +127,6 @@ if __name__ == "__main__":
     logger_options = config.get("logging", None)
     set_logger(options=logger_options)
     logger.info(f"Configuration read from '{filename}'.")
-
-    logger.info("Starting...")
-
-    handoff = config["handoff"]
-    endpoint = config["endpoint"]
 
     # Initialize runtime settings.
     #
@@ -167,9 +164,12 @@ if __name__ == "__main__":
     pool_size = settings["transfer_pool"]
     exp_time = settings["expiration_time"]
 
+    # Initialize task queues.
     awaiting = queue.Queue()
     completed = queue.Queue()
 
+    # Define tasks related to managing the buffer.
+    handoff = config["handoff"]
     scanner = mgr.Scanner(handoff, awaiting)
     mover = mgr.Mover(handoff, completed)
     eraser = mgr.Eraser(handoff, exp_time=exp_time)
@@ -177,15 +177,20 @@ if __name__ == "__main__":
     cleaner.add(mover)
     cleaner.add(eraser)
 
+    # Define tasks related to file transfer.
+    endpoint = config["endpoint"]
     porter = mgr.Porter(endpoint, awaiting, completed,
                         chunk_size=chunk_size, timeout=timeout)
     wiper = mgr.Wiper(endpoint)
 
+    logger.info("Starting cleaner daemon...")
     daemon = threading.Thread(target=background_thread,
                               args=(cleaner,), kwargs=dict(pause=delay),
                               daemon=True)
     daemon.start()
+    logger.info("Done.")
 
+    logger.info("Starting buffer monitoring...")
     while True:
         # Scan source location for files.
         start = time.time()
@@ -205,13 +210,18 @@ if __name__ == "__main__":
                 threads.append(t)
             for t in threads:
                 t.join()
-            if completed.qsize() != 0:
+            size = completed.qsize()
+            if size != 0:
                 wiper.run()
             end = time.time()
             duration = end - start
-            logger.info(f"Processing completed: {completed.qsize()} file(s) transferred.")
+            logger.info(f"Processing completed: {size} file(s) transferred.")
             logger.debug(f"Processing completed in {duration:.2f} sec.")
 
         # Go to slumber for a given time interval.
         logger.info(f"Next scan in {delay} sec.")
         time.sleep(delay)
+
+
+if __name__ == "__main__":
+    main()
