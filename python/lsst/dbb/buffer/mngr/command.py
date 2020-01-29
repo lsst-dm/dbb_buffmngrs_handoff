@@ -21,6 +21,8 @@
 
 import abc
 
+__all__ = ["Command", "Macro"]
+
 
 class Command(abc.ABC):
     """Class representing a command.

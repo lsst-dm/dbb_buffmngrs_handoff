@@ -24,6 +24,8 @@ import os
 import time
 from .command import Command
 
+__all__ = ["Scanner", "Mover", "Eraser"]
+
 
 logger = logging.getLogger(__name__)
 
