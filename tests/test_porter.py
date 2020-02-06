@@ -25,7 +25,7 @@ import queue
 import shutil
 import tempfile
 import unittest
-from lsst.dbb.buffer.mngr import Porter
+from lsst.dbb.buffmngrs.handoff import Porter
 
 
 class PorterTestCase(unittest.TestCase):

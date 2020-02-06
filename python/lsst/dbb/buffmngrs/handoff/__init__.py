@@ -20,7 +20,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from .command import *
-from .endpoint import *
-from .handoff import *
+from .remote import *
+from .local import *
 from .schema import *
 from .version import *

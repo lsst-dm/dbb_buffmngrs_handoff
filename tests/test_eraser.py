@@ -24,7 +24,7 @@ import shutil
 import tempfile
 import time
 import unittest
-from lsst.dbb.buffer.mngr import Eraser
+from lsst.dbb.buffmngrs.handoff import Eraser
 
 
 class EraserTestCase(unittest.TestCase):

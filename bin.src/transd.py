@@ -29,10 +29,10 @@ import queue
 import threading
 import time
 import yaml
-import lsst.dbb.buffer.mngr as mgr
+import lsst.dbb.buffmngrs.handoff as mgr
 
 
-logger = logging.getLogger("dbb_buffer_mngr")
+logger = logging.getLogger("lsst.dbb.buffmngrs.handoff")
 
 
 def parse_args():

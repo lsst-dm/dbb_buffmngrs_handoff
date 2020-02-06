@@ -1,6 +1,6 @@
-#####################################
-dbb_buffer_mngr documentation preview
-#####################################
+###########################################
+dbb_buffmngrs_handoff documentation preview
+###########################################
 
 .. This page is for local development only. It isn't published to pipelines.lsst.io.
 
@@ -9,4 +9,4 @@ dbb_buffer_mngr documentation preview
 .. toctree::
    :maxdepth: 1
 
-   lsst.dbb.buffer.mngr/index
+   lsst.dbb.buffmngrs.handoff/index
