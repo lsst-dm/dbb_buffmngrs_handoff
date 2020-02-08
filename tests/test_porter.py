@@ -71,6 +71,7 @@ class PorterTestCase(unittest.TestCase):
         args = [config, self.todo, self.done]
         self.assertRaises(ValueError, Porter, *args)
 
+    @unittest.skip("needs a running sshd")
     def testRun(self):
         """Test if Porter transfers files between handoff and endpoint sites.
         """

@@ -46,6 +46,7 @@ class WiperTestCase(unittest.TestCase):
         args = [config]
         self.assertRaises(ValueError, Wiper, *args)
 
+    @unittest.skip("needs a running sshd")
     def testEmpty(self):
         """Test if Wiper removes empty directory.
         """
@@ -61,6 +62,7 @@ class WiperTestCase(unittest.TestCase):
                 dirs.append(d)
         self.assertEqual(len(dirs), 0)
 
+    @unittest.skip("needs a running sshd")
     def testNonEmpty(self):
         """Test if Wiper does not remove non-empty directory.
         """
