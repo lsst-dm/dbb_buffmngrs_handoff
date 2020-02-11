@@ -21,6 +21,7 @@
 
 import logging
 import os
+import shutil
 import time
 from .command import Command
 
@@ -107,7 +108,7 @@ class Mover(Command):
             dst = os.path.join(self.root, subdir, file)
             logger.info(f"Moving '{src}' to '{dst}'.")
             try:
-                os.rename(src, dst)
+                shutil.move(src, dst)
             except OSError as ex:
                 logger.warning(f"Cannot move '{src}': {ex}.")
                 continue
