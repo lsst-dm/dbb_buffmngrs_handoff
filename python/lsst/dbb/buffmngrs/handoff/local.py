@@ -105,7 +105,12 @@ class Mover(Command):
             os.makedirs(os.path.join(self.root, subdir), exist_ok=True)
             src = os.path.join(topdir, subdir, file)
             dst = os.path.join(self.root, subdir, file)
-            os.rename(src, dst)
+            logger.info(f"Moving '{src}' to '{dst}'.")
+            try:
+                os.rename(src, dst)
+            except OSError as ex:
+                logger.warning(f"Cannot move '{src}': {ex}.")
+                continue
 
 
 class Eraser(Command):
