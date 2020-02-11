@@ -210,12 +210,9 @@ def main():
                 threads.append(t)
             for t in threads:
                 t.join()
-            size = completed.qsize()
-            if size != 0:
-                wiper.run()
+            wiper.run()
             end = time.time()
             duration = end - start
-            logger.info(f"Processing completed: {size} file(s) transferred.")
             logger.debug(f"Processing completed in {duration:.2f} sec.")
 
         # Go to slumber for a given time interval.
