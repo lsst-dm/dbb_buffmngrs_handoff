@@ -75,7 +75,8 @@ class Porter(Command):
             logger.critical(msg)
             raise ValueError(msg)
 
-        self.dest = (config["user"], config["host"], config["buffer"])
+        port = config.get("port", 22)
+        self.dest = (config["user"], config["host"], port, config["buffer"], )
         self.temp = config["staging"]
         self.size = chunk_size
         self.time = timeout
@@ -86,7 +87,7 @@ class Porter(Command):
     def run(self):
         """Transfer files to the endpoint site.
         """
-        user, host, root = self.dest
+        user, host, port, root = self.dest
         while not self.todo.empty():
             chunk = []
             for _ in range(self.size):
@@ -110,7 +111,7 @@ class Porter(Command):
                 tmp = os.path.join(self.temp, tail)
 
                 # Create the directories at the remote location.
-                cmd = f"ssh {user}@{host} mkdir -p {dst} {tmp}"
+                cmd = f"ssh -p {port} {user}@{host} mkdir -p {dst} {tmp}"
                 status, stdout, stderr = execute(cmd, timeout=self.time)
                 if status != 0:
                     msg = f"Command '{cmd}' failed with error: '{stderr}'"
@@ -119,7 +120,8 @@ class Porter(Command):
 
                 # Transfer files to the remote staging area.
                 sources = [os.path.join(src, fn) for fn in files]
-                cmd = f"scp -BCpq {' '.join(sources)} {user}@{host}:{tmp}"
+                cmd = f"scp -BCpq -P {port} " \
+                      f"{' '.join(sources)} {user}@{host}:{tmp}"
                 status, stdout, stderr = execute(cmd, timeout=self.time)
                 if status != 0:
                     msg = f"Command '{cmd}' failed with error: '{stderr}'"
@@ -130,7 +132,7 @@ class Porter(Command):
                 for fn in files:
                     s = os.path.join(tmp, fn)
                     d = os.path.join(dst, fn)
-                    cmd = f"ssh {user}@{host} mv {s} {d}"
+                    cmd = f"ssh -p {port} {user}@{host} mv {s} {d}"
                     status, stdout, stderr = execute(cmd, timeout=self.time)
                     if status != 0:
                         msg = f"Command '{cmd}' failed with error: '{stderr}'"
@@ -165,14 +167,17 @@ class Wiper(Command):
             msg = f"Invalid configuration: {', '.join(missing)} not provided."
             logger.critical(msg)
             raise ValueError(msg)
-        self.dest = (config["user"], config["host"], config["staging"])
+
+        port = config.get("port", 22)
+        self.dest = (config["user"], config["host"], port, config["staging"])
         self.time = timeout
 
     def run(self):
         """Remove empty directories from the staging area.
         """
-        user, host, path = self.dest
-        cmd = f"ssh {user}@{host} find {path} -type d -empty -mindepth 1 -delete"
+        user, host, port, path = self.dest
+        cmd = f"ssh -p {port} {user}@{host} " \
+              f"find {path} -type d -empty -mindepth 1 -delete"
         status, stdout, stderr = execute(cmd, timeout=self.time)
         if status != 0:
             msg = f"Command '{cmd}' failed with error: '{stderr}'"
