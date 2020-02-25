@@ -9,6 +9,7 @@ endpoint:
   host: example.edu
   buffer: /data/buffer
   staging: /data/staging
+  storage: /data/storage
 # port: 22
 
 # Logging options.

@@ -68,7 +68,7 @@ class Porter(Command):
     """
 
     def __init__(self, config, awaiting, completed, chunk_size=1, timeout=None):
-        required = {"user", "host", "buffer", "staging"}
+        required = {"user", "host", "buffer", "staging", "storage"}
         missing = required - set(config)
         if missing:
             msg = f"Invalid configuration: {', '.join(missing)} not provided."
@@ -76,8 +76,9 @@ class Porter(Command):
             raise ValueError(msg)
 
         port = config.get("port", 22)
-        self.dest = (config["user"], config["host"], port, config["buffer"], )
-        self.temp = config["staging"]
+        self.stage = (config["user"], config["host"], port, config["staging"])
+        self.store = config["storage"]
+        self.buffer = config["buffer"]
         self.size = chunk_size
         self.time = timeout
 
@@ -87,7 +88,7 @@ class Porter(Command):
     def run(self):
         """Transfer files to the endpoint site.
         """
-        user, host, port, root = self.dest
+        user, host, port, root = self.stage
         while not self.todo.empty():
             chunk = []
             for _ in range(self.size):
@@ -107,37 +108,59 @@ class Porter(Command):
             for loc, files in mapping.items():
                 head, tail = loc
                 src = os.path.join(head, tail)
-                dst = os.path.join(root, tail)
-                tmp = os.path.join(self.temp, tail)
+                stage = os.path.join(root, tail)
+                store = os.path.join(self.store, tail)
+                buffer = os.path.join(self.buffer, tail)
 
-                # Create the directories at the remote location.
-                cmd = f"ssh -p {port} {user}@{host} mkdir -p {dst} {tmp}"
+                # Create necessary subdirectory in the staging area on the
+                # endpoint site.
+                cmd = f"ssh -p {port} {user}@{host} mkdir -p {stage}"
                 status, stdout, stderr = execute(cmd, timeout=self.time)
                 if status != 0:
                     msg = f"Command '{cmd}' failed with error: '{stderr}'"
                     logger.warning(msg)
                     continue
 
-                # Transfer files to the remote staging area.
+                # Transfer files to the staging area.
                 sources = [os.path.join(src, fn) for fn in files]
                 cmd = f"scp -BCpq -P {port} " \
-                      f"{' '.join(sources)} {user}@{host}:{tmp}"
+                      f"{' '.join(sources)} {user}@{host}:{stage}"
                 status, stdout, stderr = execute(cmd, timeout=self.time)
                 if status != 0:
                     msg = f"Command '{cmd}' failed with error: '{stderr}'"
                     logger.warning(msg)
                     continue
 
-                # Move successfully transferred files to the final location.
+                # Create necessary subdirectory in the storage area and
+                # the buffer on the endpoint site.
+                cmd = f"ssh -p {port} {user}@{host} mkdir -p {store} {buffer}"
+                status, stdout, stderr = execute(cmd, timeout=self.time)
+                if status != 0:
+                    msg = f"Command '{cmd}' failed with error: '{stderr}'"
+                    logger.warning(msg)
+                    continue
+
+                # Move successfully transferred files to the storage area and
+                # create corresponding hard link in the endpoint's buffer.
                 for fn in files:
-                    s = os.path.join(tmp, fn)
-                    d = os.path.join(dst, fn)
-                    cmd = f"ssh -p {port} {user}@{host} mv {s} {d}"
+                    source = os.path.join(stage, fn)
+                    target = os.path.join(store, fn)
+                    link = os.path.join(buffer, fn)
+
+                    cmd = f"ssh -p {port} {user}@{host} mv {source} {target}"
                     status, stdout, stderr = execute(cmd, timeout=self.time)
                     if status != 0:
                         msg = f"Command '{cmd}' failed with error: '{stderr}'"
                         logger.warning(msg)
                         continue
+
+                    cmd = f"ssh -p {port} {user}@{host} ln {target} {link}"
+                    status, stdout, stderr = execute(cmd, timeout=self.time)
+                    if status != 0:
+                        msg = f"Command '{cmd}' failed with error: '{stderr}'"
+                        logger.warning(msg)
+                        continue
+
                     self.done.put((head, tail, fn))
 
 
