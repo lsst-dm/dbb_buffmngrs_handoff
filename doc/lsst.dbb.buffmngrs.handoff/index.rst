@@ -8,15 +8,19 @@ lsst.dbb.buffmngrs.handoff
 
 .. Paragraph that describes what this Python module does and links to related modules and frameworks.
 
-.. .. _lsst.dbb.buffmngrs.handoff-using:
+Data Backbone buffer manager transfers images from a handoff site (e.g LSST
+archiver) to a remote endpoint site (e.g. LDF gateway) to ingest them into the
+Data Backbone.
 
-.. Using dbb.buffmngrs.handoff
-.. ===========================
+.. _lsst.dbb.buffmngrs.handoff-using:
 
-.. toctree linking to topics related to using the module's APIs.
+Using dbb.buffmngrs.handoff
+===========================
 
-.. .. toctree::
-..    :maxdepth: 1
+.. toctree::
+   :maxdepth: 1
+
+   get-started
 
 .. _lsst.dbb.buffmngrs.handoff-contributing:
 
