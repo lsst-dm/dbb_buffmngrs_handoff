@@ -1,3 +1,24 @@
+# This file is part of dbb_buffer_mngr.
+#
+# Developed for the LSST Data Management System.
+# This product includes software developed by the LSST Project
+# (https://www.lsst.org).
+# See the COPYRIGHT file at the top-level directory of this distribution
+# for details of code ownership.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 import collections
 import errno
 import logging
@@ -6,6 +27,8 @@ import queue
 import shlex
 import subprocess
 from .command import Command
+
+__all__ = ['Porter', 'Wiper']
 
 
 logger = logging.getLogger(__name__)
@@ -35,7 +58,8 @@ class Porter(Command):
         loop, defaults to 1.
     timeout : int, optional
         Time (in seconds) after which the child process executing a bash
-        command will be terminated. Defaults to None which means
+        command will be terminated. If None (default), the command will wait
+        indefinitely for the child process to complete.
 
     Raises
     ------
@@ -44,15 +68,17 @@ class Porter(Command):
     """
 
     def __init__(self, config, awaiting, completed, chunk_size=1, timeout=None):
-        required = {"user", "host", "buffer", "staging"}
+        required = {"user", "host", "buffer", "staging", "storage"}
         missing = required - set(config)
         if missing:
             msg = f"Invalid configuration: {', '.join(missing)} not provided."
             logger.critical(msg)
             raise ValueError(msg)
 
-        self.dest = (config["user"], config["host"], config["buffer"])
-        self.temp = config["staging"]
+        port = config.get("port", 22)
+        self.stage = (config["user"], config["host"], port, config["staging"])
+        self.store = config["storage"]
+        self.buffer = config["buffer"]
         self.size = chunk_size
         self.time = timeout
 
@@ -62,7 +88,7 @@ class Porter(Command):
     def run(self):
         """Transfer files to the endpoint site.
         """
-        user, host, root = self.dest
+        user, host, port, root = self.stage
         while not self.todo.empty():
             chunk = []
             for _ in range(self.size):
@@ -82,36 +108,59 @@ class Porter(Command):
             for loc, files in mapping.items():
                 head, tail = loc
                 src = os.path.join(head, tail)
-                dst = os.path.join(root, tail)
-                tmp = os.path.join(self.temp, tail)
+                stage = os.path.join(root, tail)
+                store = os.path.join(self.store, tail)
+                buffer = os.path.join(self.buffer, tail)
 
-                # Create the directories at the remote location.
-                cmd = f"ssh {user}@{host} mkdir -p {dst} {tmp}"
+                # Create necessary subdirectory in the staging area on the
+                # endpoint site.
+                cmd = f"ssh -p {port} {user}@{host} mkdir -p {stage}"
                 status, stdout, stderr = execute(cmd, timeout=self.time)
                 if status != 0:
                     msg = f"Command '{cmd}' failed with error: '{stderr}'"
                     logger.warning(msg)
                     continue
 
-                # Transfer files to the remote staging area.
+                # Transfer files to the staging area.
                 sources = [os.path.join(src, fn) for fn in files]
-                cmd = f"scp -BCpq {' '.join(sources)} {user}@{host}:{tmp}"
+                cmd = f"scp -BCpq -P {port} " \
+                      f"{' '.join(sources)} {user}@{host}:{stage}"
                 status, stdout, stderr = execute(cmd, timeout=self.time)
                 if status != 0:
                     msg = f"Command '{cmd}' failed with error: '{stderr}'"
                     logger.warning(msg)
                     continue
 
-                # Move successfully transferred files to the final location.
+                # Create necessary subdirectory in the storage area and
+                # the buffer on the endpoint site.
+                cmd = f"ssh -p {port} {user}@{host} mkdir -p {store} {buffer}"
+                status, stdout, stderr = execute(cmd, timeout=self.time)
+                if status != 0:
+                    msg = f"Command '{cmd}' failed with error: '{stderr}'"
+                    logger.warning(msg)
+                    continue
+
+                # Move successfully transferred files to the storage area and
+                # create corresponding hard link in the endpoint's buffer.
                 for fn in files:
-                    s = os.path.join(tmp, fn)
-                    d = os.path.join(dst, fn)
-                    cmd = f"ssh {user}@{host} mv {s} {d}"
+                    source = os.path.join(stage, fn)
+                    target = os.path.join(store, fn)
+                    link = os.path.join(buffer, fn)
+
+                    cmd = f"ssh -p {port} {user}@{host} mv {source} {target}"
                     status, stdout, stderr = execute(cmd, timeout=self.time)
                     if status != 0:
                         msg = f"Command '{cmd}' failed with error: '{stderr}'"
                         logger.warning(msg)
                         continue
+
+                    cmd = f"ssh -p {port} {user}@{host} ln {target} {link}"
+                    status, stdout, stderr = execute(cmd, timeout=self.time)
+                    if status != 0:
+                        msg = f"Command '{cmd}' failed with error: '{stderr}'"
+                        logger.warning(msg)
+                        continue
+
                     self.done.put((head, tail, fn))
 
 
@@ -123,6 +172,10 @@ class Wiper(Command):
     config : dict
         Configuration of the endpoint where empty directories should be
         removed.
+    timeout : int, optional
+        Time (in seconds) after which the child process executing a bash
+        command will be terminated. If None (default), the command will wait
+        indefinitely for the child process to complete.
 
     Raises
     ------
@@ -137,14 +190,17 @@ class Wiper(Command):
             msg = f"Invalid configuration: {', '.join(missing)} not provided."
             logger.critical(msg)
             raise ValueError(msg)
-        self.dest = (config["user"], config["host"], config["staging"])
+
+        port = config.get("port", 22)
+        self.dest = (config["user"], config["host"], port, config["staging"])
         self.time = timeout
 
     def run(self):
         """Remove empty directories from the staging area.
         """
-        user, host, path = self.dest
-        cmd = f"ssh {user}@{host} find {path} -type d -empty -mindepth 1 -delete"
+        user, host, port, path = self.dest
+        cmd = f"ssh -p {port} {user}@{host} " \
+              f"find {path} -type d -empty -mindepth 1 -delete"
         status, stdout, stderr = execute(cmd, timeout=self.time)
         if status != 0:
             msg = f"Command '{cmd}' failed with error: '{stderr}'"
@@ -156,15 +212,17 @@ def execute(cmd, timeout=None):
 
     Parameters
     ----------
-    cmd : str
+    cmd : basestring
         String representing the command, its options and arguments.
     timeout : int, optional
-        Time (in seconds) after the child process will be killed.
+        Time (in seconds) after which the child process executing a bash
+        command will be terminated. If None (default), the command will wait
+        indefinitely for the child process to complete.
 
     Returns
     -------
-    int
-        Shell command exit status, 0 if successful, non-zero otherwise.
+    (int, basestring, basestring)
+        Shell command exit status, stdout, and stderr
     """
     logger.debug(f"Executing {cmd}.")
 

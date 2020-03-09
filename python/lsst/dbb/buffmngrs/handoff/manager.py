@@ -1,4 +1,23 @@
-#!/usr/bin/env python
+# This file is part of dbb_buffer_mngr.
+#
+# Developed for the LSST Data Management System.
+# This product includes software developed by the LSST Project
+# (https://www.lsst.org).
+# See the COPYRIGHT file at the top-level directory of this distribution
+# for details of code ownership.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import argparse
 import jsonschema
@@ -8,10 +27,12 @@ import queue
 import threading
 import time
 import yaml
-import dbb_buffer_mngr as mgr
+import lsst.dbb.buffmngrs.handoff as mgr
+
+__all__ = ["main"]
 
 
-logger = logging.getLogger("dbb_buffer_mngr")
+logger = logging.getLogger("lsst.dbb.buffmngrs.handoff")
 
 
 def parse_args():
@@ -81,7 +102,9 @@ def background_thread(cmd, pause=1):
         time.sleep(pause)
 
 
-if __name__ == "__main__":
+def main():
+    """Application entry point.
+    """
     args = parse_args()
 
     # Read provided configuration or use the default one.
@@ -104,11 +127,6 @@ if __name__ == "__main__":
     logger_options = config.get("logging", None)
     set_logger(options=logger_options)
     logger.info(f"Configuration read from '{filename}'.")
-
-    logger.info("Starting...")
-
-    handoff = config["handoff"]
-    endpoint = config["endpoint"]
 
     # Initialize runtime settings.
     #
@@ -146,9 +164,12 @@ if __name__ == "__main__":
     pool_size = settings["transfer_pool"]
     exp_time = settings["expiration_time"]
 
+    # Initialize task queues.
     awaiting = queue.Queue()
     completed = queue.Queue()
 
+    # Define tasks related to managing the buffer.
+    handoff = config["handoff"]
     scanner = mgr.Scanner(handoff, awaiting)
     mover = mgr.Mover(handoff, completed)
     eraser = mgr.Eraser(handoff, exp_time=exp_time)
@@ -156,15 +177,20 @@ if __name__ == "__main__":
     cleaner.add(mover)
     cleaner.add(eraser)
 
+    # Define tasks related to file transfer.
+    endpoint = config["endpoint"]
     porter = mgr.Porter(endpoint, awaiting, completed,
                         chunk_size=chunk_size, timeout=timeout)
     wiper = mgr.Wiper(endpoint)
 
+    logger.info("Starting cleaner daemon...")
     daemon = threading.Thread(target=background_thread,
                               args=(cleaner,), kwargs=dict(pause=delay),
                               daemon=True)
     daemon.start()
+    logger.info("Done.")
 
+    logger.info("Starting buffer monitoring...")
     while True:
         # Scan source location for files.
         start = time.time()
@@ -184,11 +210,9 @@ if __name__ == "__main__":
                 threads.append(t)
             for t in threads:
                 t.join()
-            if completed.qsize() != 0:
-                wiper.run()
+            wiper.run()
             end = time.time()
             duration = end - start
-            logger.info(f"Processing completed: {completed.qsize()} file(s) transferred.")
             logger.debug(f"Processing completed in {duration:.2f} sec.")
 
         # Go to slumber for a given time interval.
