@@ -22,5 +22,5 @@
 from .command import *
 from .remote import *
 from .local import *
-from .schema import *
+from .validation import *
 from .version import *
