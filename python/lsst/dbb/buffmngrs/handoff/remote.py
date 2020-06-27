@@ -26,7 +26,7 @@ import os
 import queue
 import shlex
 import subprocess
-from .command import Command
+from .abcs import Command
 
 __all__ = ['Porter', 'Wiper']
 

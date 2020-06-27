@@ -23,7 +23,7 @@ import logging
 import os
 import shutil
 import time
-from .command import Command
+from .abcs import Command
 
 __all__ = ["Scanner", "Mover", "Eraser"]
 
