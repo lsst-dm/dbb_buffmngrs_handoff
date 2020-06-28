@@ -2,4 +2,5 @@
 dbb_buffer_mngr
 ###############
 
-Replicates Auxtel data from original site to a designated location.
+Transfer files between a handoff site, e.g., Comcam, and a designated location
+at the data facility, an endpoint site.
