@@ -142,7 +142,7 @@ def main():
     #     Number of seconds both the main thread and any daemon thread will
     #     spent idling after their session finished.
     #
-    # transfer_pool
+    # num_threads
     #     Number of transfer threads to run concurrently.
     #
     # expiration_time
@@ -152,16 +152,16 @@ def main():
         "chunk_size": 1,
         "timeout": None,
         "pause": 1,
-        "transfer_pool": 1,
+        "num_threads": 1,
         "expiration_time": 86400
     }
     general_options = config.get("general", None)
     if general_options is not None:
         settings.update(general_options)
-    delay = settings["pause"]
+    pause = settings["pause"]
     chunk_size = settings["chunk_size"]
     timeout = settings["timeout"]
-    pool_size = settings["transfer_pool"]
+    num_threads = settings["num_threads"]
     exp_time = settings["expiration_time"]
 
     # Initialize task queues.
@@ -185,7 +185,7 @@ def main():
 
     logger.info("Starting cleaner daemon...")
     daemon = threading.Thread(target=background_thread,
-                              args=(cleaner,), kwargs=dict(pause=delay),
+                              args=(cleaner,), kwargs=dict(pause=pause),
                               daemon=True)
     daemon.start()
     logger.info("Done.")
@@ -204,7 +204,7 @@ def main():
         if awaiting.qsize() != 0:
             start = time.time()
             threads = []
-            for _ in range(pool_size):
+            for _ in range(num_threads):
                 t = threading.Thread(target=porter.run)
                 t.start()
                 threads.append(t)
@@ -216,5 +216,5 @@ def main():
             logger.debug(f"Processing completed in {duration:.2f} sec.")
 
         # Go to slumber for a given time interval.
-        logger.info(f"Next scan in {delay} sec.")
-        time.sleep(delay)
+        logger.info(f"Next scan in {pause} sec.")
+        time.sleep(pause)
