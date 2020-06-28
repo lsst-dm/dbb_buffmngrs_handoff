@@ -116,12 +116,13 @@ def main():
     with open(filename, "r") as f:
         config = yaml.safe_load(f)
 
-    # Validate configuration, if requested.
+    # If requested, validate configuration and exit.
     if args.validate:
         try:
             jsonschema.validate(instance=config, schema=mgr.SCHEMA)
         except jsonschema.ValidationError as ex:
             raise ValueError(f"Configuration error: {ex.message}.")
+        return
 
     # Set up a logger.
     logger_options = config.get("logging", None)
