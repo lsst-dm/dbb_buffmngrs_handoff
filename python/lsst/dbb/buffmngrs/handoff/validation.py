@@ -39,14 +39,23 @@ SCHEMA = {
                 "user": {"type": "string"},
                 "host": {"type": "string"},
                 "buffer": {"type": "string"},
-                "staging": {"type": "string"}
+                "staging": {"type": "string"},
+                "port": {"type": "integer", "minimum": 0}
             },
             "required": ["user", "host", "buffer", "staging"]
         },
         "logging": {
             "type": "object",
             "properties": {
-                "file": {"type": "string"},
+                "format": {
+                    "type": "string"
+                },
+                "file": {
+                    "anyOf": [
+                        {"type": "string"},
+                        {"type": "null"},
+                     ]
+                },
                 "level": {
                     "type": "string",
                     "enum": ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
@@ -60,11 +69,21 @@ SCHEMA = {
                     "type": "integer",
                     "minimum": 1
                 },
-                "porters": {
+                "num_threads": {
                     "type": "integer",
                     "minimum": 1
                 },
-                "delay": {
+                "timeout": {
+                    "anyOf": [
+                            {"type": "integer", "minimum": 1},
+                            {"type": "null"}
+                    ]
+                },
+                "expiration_time": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "pause": {
                     "type": "integer",
                     "minimum": 1
                 }
