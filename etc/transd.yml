@@ -1,26 +1,19 @@
-# Handoff location (i.e. where the files are written to).
 handoff:
   buffer: /data/buffer
   holding: /data/holding
-
-# Ingest service location (i.e. where the files will be transferred to)
 endpoint:
   user: jdoe
   host: example.edu
   buffer: /data/buffer
   staging: /data/staging
-# port: 22
-
-# Logging options.
-#logging:
-# format: %(asctime)s:%(name)s:%(levelname)s:%(message)s
-# file: transd.log
-# level: WARNING
-
-# General options.
-#general:
-#  chunk_size: 1
-#  timeout: None
-#  transfer_pool: 1
-#  expiration_time: 86400
-#  pause: 1
+  port: 22
+logging:
+  format: "%(asctime)s:%(name)s:%(levelname)s:%(message)s"
+  file: null
+  level: WARNING
+general:
+  chunk_size: 1
+  timeout: null
+  transfer_pool: 1
+  expiration_time: 86400
+  pause: 1
