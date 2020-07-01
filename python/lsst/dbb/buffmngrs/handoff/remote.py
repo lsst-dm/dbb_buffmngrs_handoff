@@ -26,7 +26,7 @@ import os
 import queue
 import shlex
 import subprocess
-from .command import Command
+from .abcs import Command
 
 __all__ = ['Porter', 'Wiper']
 
@@ -68,7 +68,7 @@ class Porter(Command):
     """
 
     def __init__(self, config, awaiting, completed, chunk_size=1, timeout=None):
-        required = {"user", "host", "buffer", "staging", "storage"}
+        required = {"user", "host", "buffer", "staging"}
         missing = required - set(config)
         if missing:
             msg = f"Invalid configuration: {', '.join(missing)} not provided."
@@ -77,7 +77,6 @@ class Porter(Command):
 
         port = config.get("port", 22)
         self.stage = (config["user"], config["host"], port, config["staging"])
-        self.store = config["storage"]
         self.buffer = config["buffer"]
         self.size = chunk_size
         self.time = timeout
@@ -109,7 +108,6 @@ class Porter(Command):
                 head, tail = loc
                 src = os.path.join(head, tail)
                 stage = os.path.join(root, tail)
-                store = os.path.join(self.store, tail)
                 buffer = os.path.join(self.buffer, tail)
 
                 # Create necessary subdirectory in the staging area on the
@@ -131,36 +129,25 @@ class Porter(Command):
                     logger.warning(msg)
                     continue
 
-                # Create necessary subdirectory in the storage area and
-                # the buffer on the endpoint site.
-                cmd = f"ssh -p {port} {user}@{host} mkdir -p {store} {buffer}"
+                # Create necessary subdirectory in the the buffer on
+                # the endpoint site.
+                cmd = f"ssh -p {port} {user}@{host} mkdir -p {buffer}"
                 status, stdout, stderr = execute(cmd, timeout=self.time)
                 if status != 0:
                     msg = f"Command '{cmd}' failed with error: '{stderr}'"
                     logger.warning(msg)
                     continue
 
-                # Move successfully transferred files to the storage area and
-                # create corresponding hard link in the endpoint's buffer.
+                # Move successfully transferred files to the endpoint's buffer.
                 for fn in files:
                     source = os.path.join(stage, fn)
-                    target = os.path.join(store, fn)
-                    link = os.path.join(buffer, fn)
-
+                    target = os.path.join(buffer, fn)
                     cmd = f"ssh -p {port} {user}@{host} mv {source} {target}"
                     status, stdout, stderr = execute(cmd, timeout=self.time)
                     if status != 0:
                         msg = f"Command '{cmd}' failed with error: '{stderr}'"
                         logger.warning(msg)
                         continue
-
-                    cmd = f"ssh -p {port} {user}@{host} ln {target} {link}"
-                    status, stdout, stderr = execute(cmd, timeout=self.time)
-                    if status != 0:
-                        msg = f"Command '{cmd}' failed with error: '{stderr}'"
-                        logger.warning(msg)
-                        continue
-
                     self.done.put((head, tail, fn))
 
 

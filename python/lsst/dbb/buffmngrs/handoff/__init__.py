@@ -19,8 +19,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from .command import *
+from .abcs import *
 from .remote import *
 from .local import *
-from .schema import *
+from .validation import *
 from .version import *

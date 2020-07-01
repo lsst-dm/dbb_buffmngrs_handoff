@@ -109,30 +109,29 @@ sites.  For example:
    endpoint:
      user: jdoe
      host: example.edu
-     staging: /data/staging   
-     storage: /data/storage
+     staging: /data/staging
      buffer: /data/buffer
 
 While configuration of the handoff site is essentially self-explanatory, the
 specification of the endpoint site requires some clarification.
 
-File movement on the endpoint site is slightly more complex at the moment than
-on the handoff site and requires additional two directories besides the buffer
-itself:
-
-1. **staging area**: directory to which files are being transfer to,
-2. **storage area**: directory to which files are being moved from the staging
-   area once their transfer is complete.
+The handoff manager doesn't transfer files directly to the buffer on the
+endpoint site.  Initially, it starts writing each file to a separated
+directory called a **staging area**. Only after the transfer for a file is
+completed, the manager moves it to the buffer.  This approach ensures that
+writing files to a buffer is an atomic operation which is required by the
+endpoint manager to function properly.
 
 .. note::
 
-   To see other supported configuration options, look at ``etc/trans.yml`` in
-   the DBB handoff buffer manager repository.
+   To see other supported configuration options, look at example
+   configuration in ``etc/trans.yaml``in the DBB handoff buffer manager
+   repository.
 
 Run DBB handoff buffer manager
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Having the handoff and endpoint sites defined in the `transd.yml`, you can
+Having the handoff and endpoint sites defined in the `transd.yaml`, you can
 start DBB handoff buffer manager with:
 
 .. code-block:: bash
