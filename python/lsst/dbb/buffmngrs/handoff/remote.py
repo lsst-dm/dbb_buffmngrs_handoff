@@ -24,6 +24,7 @@ import errno
 import logging
 import os
 import queue
+import re
 import shlex
 import subprocess
 from .abcs import Command
@@ -32,24 +33,25 @@ __all__ = ['Porter', 'Wiper']
 
 
 logger = logging.getLogger(__name__)
-
-
-Location = collections.namedtuple("Location", ["head", "tail"])
+keywords = {"batch", "command", "dest", "file"}
 
 
 class Porter(Command):
     """Command transferring files between handoff and endpoint sites.
 
-    To make file transfers look like atomic operations, files are not placed
-    in directly in the buffer, but are initially transferred to a separate
-    location on the endpoint site, a staging area.  Once the transfer of a
-    file is finished, it is moved to the buffer.
+    If only endpoint site's buffer is specified in the configuration,
+    files will be transfer directly to it.
+
+    To make file transfers look like atomic operations, a separate location,
+    staging area, need to be specified as well.  In that case, each file is
+    initially transferred to it and moved to the endpoint's buffer only
+    after the transfer is finished.
 
     Parameters
     ----------
     config : dict
         Configuration of the endpoint where files should be transferred to.
-    awaiting : queue.Queue
+    pending : queue.Queue
         Files that need to be transferred.
     completed : queue.Queue
         Files that were transferred successfully.
@@ -67,30 +69,51 @@ class Porter(Command):
         If endpoint's specification is invalid.
     """
 
-    def __init__(self, config, awaiting, completed, chunk_size=1, timeout=None):
-        required = {"user", "host", "buffer", "staging"}
+    def __init__(self, config, pending, completed, chunk_size=1, timeout=None):
+        required = {"user", "host", "buffer", "commands"}
         missing = required - set(config)
         if missing:
             msg = f"Invalid configuration: {', '.join(missing)} not provided."
             logger.critical(msg)
             raise ValueError(msg)
 
-        port = config.get("port", 22)
-        self.stage = (config["user"], config["host"], port, config["staging"])
-        self.buffer = config["buffer"]
-        self.size = chunk_size
-        self.time = timeout
+        self.cmds = config["commands"]
+        self.params = {k: v for k, v in config.items() if k != "commands"}
 
-        self.todo = awaiting
+        # Verify if all parameters in use were provided.
+        actual = set(self.params)
+        for cmd in self.cmds.values():
+            formal = set(re.findall(r"{(\w+)}", cmd))
+            remaining = formal - actual
+            undefined = remaining - keywords
+            if undefined:
+                msg = f"parameters {', '.join(undefined)} are used, " \
+                      f"but not defined in '{cmd}'"
+                logger.error(msg)
+                raise ValueError(msg)
+
+        self.batch_mode = False
+        if "batch" in self.cmds["transfer"]:
+            self.batch_mode = True
+
+        cmd = self.cmds["transfer"]
+        self.cmds["transfer"] = re.sub(r"(batch|file)", "source", cmd)
+
+        self.chunk_size = chunk_size
+        self.timeout = timeout
+
+        self.todo = pending
         self.done = completed
 
     def run(self):
         """Transfer files to the endpoint site.
         """
-        user, host, port, root = self.stage
+        buffer = self.params["buffer"]
+        stage = self.params.get("staging", buffer)
         while not self.todo.empty():
+            # Grab a bunch of files from the work queue.
             chunk = []
-            for _ in range(self.size):
+            for _ in range(self.chunk_size):
                 try:
                     topdir, subdir, file = self.todo.get(block=False)
                 except queue.Empty:
@@ -100,54 +123,85 @@ class Porter(Command):
             if not chunk:
                 continue
 
-            mapping = dict()
-            for topdir, subdir, file in chunk:
-                loc = Location(topdir, subdir)
-                mapping.setdefault(loc, []).append(file)
-            for loc, files in mapping.items():
-                head, tail = loc
-                src = os.path.join(head, tail)
-                stage = os.path.join(root, tail)
-                buffer = os.path.join(self.buffer, tail)
+            # Group files based on their location.
+            mapping = {}
+            for topdir, subdir, filename in chunk:
+                mapping.setdefault((topdir, subdir), []).append(filename)
 
-                # Create necessary subdirectory in the staging area on the
-                # endpoint site.
-                cmd = f"ssh -p {port} {user}@{host} mkdir -p {stage}"
-                status, stdout, stderr = execute(cmd, timeout=self.time)
+            # Transfer files to the handoff site to the endpoint site.
+            for location, filenames in mapping.items():
+                head, tail = location
+
+                # Transfer files to the staging area on the endpoint site.
+                relocated = collections.deque()
+
+                batch = [(head, tail, fn) for fn in filenames]
+                if self.batch_mode:
+                    batch = [batch]
+                dest = os.path.join(stage, tail)
+
+                tpl = self.cmds["remote"]
+                cmd = tpl.format(**self.params, command=f"mkdir -p {dest}")
+                status, stdout, stderr = execute(cmd, timeout=self.timeout)
                 if status != 0:
                     msg = f"Command '{cmd}' failed with error: '{stderr}'"
                     logger.warning(msg)
                     continue
 
-                # Transfer files to the staging area.
-                sources = [os.path.join(src, fn) for fn in files]
-                cmd = f"scp -BCpq -P {port} " \
-                      f"{' '.join(sources)} {user}@{host}:{stage}"
-                status, stdout, stderr = execute(cmd, timeout=self.time)
+                tpl = self.cmds["transfer"]
+                for member in batch:
+                    if isinstance(member, tuple):
+                        member = [member]
+                    src = " ".join([os.path.join(*t) for t in member])
+                    cmd = tpl.format(**self.params, source=src, dest=dest)
+                    status, stdout, stderr = execute(cmd, timeout=self.timeout)
+                    if status != 0:
+                        msg = f"command '{cmd}' failed with error: '{stderr}'"
+                        logger.warning(msg)
+                        continue
+                    for _, _, fn in member:
+                        relocated.append((head, tail, fn))
+
+                # If files were transferred directly to the buffer on the
+                # endpoint site, skip the next step.
+                if stage == buffer:
+                    while relocated:
+                        _, _, fn = relocated.popleft()
+                        self.done.put(head, tail, fn)
+                    continue
+
+                # Transfer files from the staging area to the buffer.
+                relocated.clear()
+
+                batch = [(stage, tail, fn) for fn in filenames]
+                if self.batch_mode:
+                    batch = [batch]
+                dest = os.path.join(buffer, tail)
+
+                tpl = self.cmds["remote"]
+                cmd = tpl.format(**self.params, command=f"mkdir -p {dest}")
+                status, stdout, stderr = execute(cmd, timeout=self.timeout)
                 if status != 0:
                     msg = f"Command '{cmd}' failed with error: '{stderr}'"
                     logger.warning(msg)
                     continue
 
-                # Create necessary subdirectory in the the buffer on
-                # the endpoint site.
-                cmd = f"ssh -p {port} {user}@{host} mkdir -p {buffer}"
-                status, stdout, stderr = execute(cmd, timeout=self.time)
-                if status != 0:
-                    msg = f"Command '{cmd}' failed with error: '{stderr}'"
-                    logger.warning(msg)
-                    continue
-
-                # Move successfully transferred files to the endpoint's buffer.
-                for fn in files:
-                    source = os.path.join(stage, fn)
-                    target = os.path.join(buffer, fn)
-                    cmd = f"ssh -p {port} {user}@{host} mv {source} {target}"
-                    status, stdout, stderr = execute(cmd, timeout=self.time)
+                tpl = self.cmds["remote"]
+                for member in batch:
+                    if isinstance(member, tuple):
+                        member = [member]
+                    src = " ".join([os.path.join(*t) for t in member])
+                    cmd = tpl.format(**self.params, command=f"mv {src} {dest}")
+                    status, stdout, stderr = execute(cmd, timeout=self.timeout)
                     if status != 0:
                         msg = f"Command '{cmd}' failed with error: '{stderr}'"
                         logger.warning(msg)
                         continue
+                    for _, _, fn in member:
+                        relocated.append((head, tail, fn))
+
+                while relocated:
+                    _, _, fn = relocated.popleft()
                     self.done.put((head, tail, fn))
 
 
@@ -171,23 +225,29 @@ class Wiper(Command):
     """
 
     def __init__(self, config, timeout=None):
-        required = {"user", "host", "staging"}
+        required = {"user", "host", "commands"}
         missing = required - set(config)
         if missing:
             msg = f"Invalid configuration: {', '.join(missing)} not provided."
             logger.critical(msg)
             raise ValueError(msg)
 
-        port = config.get("port", 22)
-        self.dest = (config["user"], config["host"], port, config["staging"])
+        self.cmds = config["commands"]
+        self.params = {k: v for k, v in config.items() if k != "commands"}
+
+        self.stage = self.params.get("staging", None)
+
         self.time = timeout
 
     def run(self):
         """Remove empty directories from the staging area.
         """
-        user, host, port, path = self.dest
-        cmd = f"ssh -p {port} {user}@{host} " \
-              f"find {path} -type d -empty -mindepth 1 -delete"
+        if self.stage is None:
+            return
+        tpl = self.cmds["remote"]
+        args = dict(command=f"find {self.stage} -type d -empty -mindepth 1 "
+                            f"-delete")
+        cmd = tpl.format(**self.params, **args)
         status, stdout, stderr = execute(cmd, timeout=self.time)
         if status != 0:
             msg = f"Command '{cmd}' failed with error: '{stderr}'"
@@ -211,7 +271,7 @@ def execute(cmd, timeout=None):
     (int, basestring, basestring)
         Shell command exit status, stdout, and stderr
     """
-    logger.debug(f"Executing {cmd}.")
+    logger.info(f"Executing {cmd}.")
 
     args = shlex.split(cmd)
     opts = dict(capture_output=True, timeout=timeout, check=True, text=True)
