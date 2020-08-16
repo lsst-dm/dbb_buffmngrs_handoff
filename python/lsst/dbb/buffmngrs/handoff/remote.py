@@ -271,7 +271,7 @@ def execute(cmd, timeout=None):
     (int, basestring, basestring)
         Shell command exit status, stdout, and stderr
     """
-    logger.info(f"Executing {cmd}.")
+    logger.debug(f"Executing {cmd}.")
 
     args = shlex.split(cmd)
     opts = dict(capture_output=True, timeout=timeout, check=True, text=True)
