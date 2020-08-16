@@ -12,7 +12,7 @@ endpoint:
 logging:
   format: "%(asctime)s:%(name)s:%(levelname)s:%(message)s"
   file: null
-  level: WARNING
+  level: INFO
 general:
   chunk_size: 1
   timeout: null
