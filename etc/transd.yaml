@@ -8,7 +8,7 @@ endpoint:
   staging: /data/staging
   commands:
     remote: "ssh -l {user} {host} \"{command}\""
-    transfer: "scp -BCpq {file} {user}@{host}:{dest}"
+    transfer: "scp -Bpq {file} {user}@{host}:{dest}"
 logging:
   format: "%(asctime)s:%(name)s:%(levelname)s:%(message)s"
   file: null

@@ -107,20 +107,70 @@ sites.  For example:
      buffer: /data/buffer
      holding: /data/holding
    endpoint:
+     buffer: /data/buffer
+     staging: /data/staging
+     commands:
+       transfer: "scp -Bpq {file} {user}@{host}:{dest}"
+       remote: "ssh {user}@{host} \"{command}\""
      user: jdoe
      host: example.edu
-     staging: /data/staging
-     buffer: /data/buffer
 
 While configuration of the handoff site is essentially self-explanatory, the
 specification of the endpoint site requires some clarification.
 
-The handoff manager doesn't transfer files directly to the buffer on the
-endpoint site.  Initially, it starts writing each file to a separated
-directory called a **staging area**. Only after the transfer for a file is
-completed, the manager moves it to the buffer.  This approach ensures that
-writing files to a buffer is an atomic operation which is required by the
-endpoint manager to function properly.
+In the ``endpoint`` section, at minimum, you need to define:
+* ``buffer``: endpoint's buffer, 
+* ``staging``: staging area for files being transferred (see note below)
+* ``commands``: commands describing how the manager should transfer files and
+  execute Unix shell commands remotely.
+
+.. note::
+
+   The endpoint manager requires that writing files to the endpoint's buffer is
+   an atomic operation.  Hence the handoff manager doesn't transfer files
+   directly to the buffer on the endpoint site.  Initially, it starts writing
+   each file to separate directory, **staging area**, mentioned above. Only
+   after the transfer for a file is completed, the manager moves it to the
+   buffer.
+
+In the example provided above, the handoff manager is instructed to transfer
+the files to the endpoint site's buffer located at ``/data/buffer`` using
+``/data/staging`` as the staging area.  It will use ``scp`` command to transfer
+files and OpenSSH client, ``ssh``, to execute any shell commands remotely, if
+necessary.  As some settings (user and host name) are used in ``scp`` as well
+as in ``ssh`` command, they were defined as parameters to make changing them
+easier if it is ever needed.
+
+In general, while defining commands for file transfer and remote command
+execution, please keep in mind that:
+
+#. You may define arbitrary parameters in the ``endpoint`` section, e.g.,
+   ``port: 22``.  However, do **not** use ``batch``, ``file``, ``dest``, and
+   ``command`` as a parameter name.  These are reserved keywords with special
+   meaning.
+
+#. You can use parameters you set while defining the commands described above,
+   just enclose their name in curly braces, e.g., ``{port}``.  They will be
+   substituted with provided value during the runtime.
+
+#. The transfer command **must** contain ``{file}`` *and* ``{dest}`` keywords.
+   During the runtime, the handoff manager will substitute these keywords with
+   the name of the file being transfer and appropriate target location on the
+   endpoint site.
+   
+#. The ``{file}`` can be replaced with ``{batch}``.  It will instruct the
+   handoff manager to transfer files in batches when possible instead of
+   executing the transfer command separately for each file.
+
+#. The command describing how shell commands need to be executed on the
+   endpoint site **must** contain ``{command}`` keyword which tells the handoff
+   manager where the shell commands it needs to execute on the endpoint site
+   must be placed.
+
+#. The handoff manager may need to execute various shell commands on the
+   endpoint site (e.g. ``mkdir`` of ``find``).  Make sure that your
+   specification of the remote command does **not** put unnecessary
+   restrictions on what shell command can be executed.
 
 .. note::
 
