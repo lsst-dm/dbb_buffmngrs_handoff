@@ -191,7 +191,7 @@ def main():
     daemon.start()
     logger.info("Done.")
 
-    logger.info("Starting monitoring the buffer...")
+    logger.info("Starting to monitor the buffer...")
     while True:
         # Scan source location for files.
         logger.info("Scanning buffer for new files.")
