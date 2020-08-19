@@ -39,10 +39,16 @@ SCHEMA = {
                 "user": {"type": "string"},
                 "host": {"type": "string"},
                 "buffer": {"type": "string"},
-                "staging": {"type": "string"},
-                "port": {"type": "integer", "minimum": 0}
+                "commands": {
+                    "type": "object",
+                    "properties": {
+                        "remote": {"type": "string"},
+                        "transfer": {"type": "string"}
+                    },
+                    "required": ["remote", "transfer"]
+                }
             },
-            "required": ["user", "host", "buffer", "staging"]
+            "required": ["user", "host", "buffer"]
         },
         "logging": {
             "type": "object",

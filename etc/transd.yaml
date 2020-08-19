@@ -6,11 +6,13 @@ endpoint:
   host: example.edu
   buffer: /data/buffer
   staging: /data/staging
-  port: 22
+  commands:
+    remote: "ssh -l {user} {host} \"{command}\""
+    transfer: "scp -Bpq {file} {user}@{host}:{dest}"
 logging:
   format: "%(asctime)s:%(name)s:%(levelname)s:%(message)s"
   file: null
-  level: WARNING
+  level: INFO
 general:
   chunk_size: 1
   timeout: null

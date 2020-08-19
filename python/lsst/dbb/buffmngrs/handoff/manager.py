@@ -191,18 +191,20 @@ def main():
     daemon.start()
     logger.info("Done.")
 
-    logger.info("Starting buffer monitoring...")
+    logger.info("Starting to monitor the buffer...")
     while True:
         # Scan source location for files.
+        logger.info("Scanning buffer for new files...")
         start = time.time()
         scanner.run()
         end = time.time()
         duration = end - start
-        logger.info(f"Scan completed: {awaiting.qsize()} file(s) found.")
-        logger.debug(f"Scan completed in {duration:.2f} sec.")
+        logger.info(f"Scan completed: {awaiting.qsize()} file(s) found, "
+                    f"duration: {duration:.2f} sec.")
 
         # Copy files to a remote location.
         if awaiting.qsize() != 0:
+            logger.info(f"Transferring files to the endpoint site...")
             start = time.time()
             threads = []
             for _ in range(num_threads):
@@ -214,7 +216,7 @@ def main():
             wiper.run()
             end = time.time()
             duration = end - start
-            logger.debug(f"Processing completed in {duration:.2f} sec.")
+            logger.info(f"Transfer completed, duration: {duration:.2f} sec.")
 
         # Go to slumber for a given time interval.
         logger.info(f"Next scan in {pause} sec.")
