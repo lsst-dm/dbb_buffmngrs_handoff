@@ -92,10 +92,17 @@ class Porter(Command):
                 logger.error(msg)
                 raise ValueError(msg)
 
+        # If the source in the transfer command is specified with keyword
+        # 'file', a separate transfer attempt will be made for each file. If
+        # the keyword 'batch' is used instead a single transfer attempt will
+        # be made for multiple files when possible.
         self.batch_mode = False
         if "batch" in self.cmds["transfer"]:
             self.batch_mode = True
 
+        # Once the transfer mode set for future reference, replace 'file/batch'
+        # with generic 'source' to make generating concrete commands easier
+        # later on.
         cmd = self.cmds["transfer"]
         self.cmds["transfer"] = re.sub(r"(batch|file)", "source", cmd)
 
@@ -123,7 +130,9 @@ class Porter(Command):
             if not chunk:
                 continue
 
-            # Group files based on their location.
+            # Group files based on their location as only the files sharing the
+            # same location can be transferred as a group with a single
+            # transfer command when the batch mode is enabled.
             mapping = {}
             for topdir, subdir, filename in chunk:
                 mapping.setdefault((topdir, subdir), []).append(filename)
@@ -133,12 +142,8 @@ class Porter(Command):
                 head, tail = location
 
                 # Transfer files to the staging area on the endpoint site.
-                relocated = collections.deque()
-
-                batch = [(head, tail, fn) for fn in filenames]
-                if self.batch_mode:
-                    batch = [batch]
                 dest = os.path.join(stage, tail)
+                relocated = collections.deque()
 
                 tpl = self.cmds["remote"]
                 cmd = tpl.format(**self.params, command=f"mkdir -p {dest}")
@@ -149,17 +154,23 @@ class Porter(Command):
                     continue
 
                 tpl = self.cmds["transfer"]
-                for member in batch:
-                    if isinstance(member, tuple):
-                        member = [member]
-                    src = " ".join([os.path.join(*t) for t in member])
+                files = [(head, tail, fn) for fn in filenames]
+
+                # Divide files into batches. If batch mode is enabled,
+                # all files are grouped into a single batch. Otherwise,
+                # each batch consists of a single file.
+                batch_size = len(files) if self.batch_mode else 1
+                batches = [files[i:i+batch_size]
+                           for i in range(0, len(files), batch_size)]
+                for batch in batches:
+                    src = " ".join([os.path.join(*t) for t in batch])
                     cmd = tpl.format(**self.params, source=src, dest=dest)
                     status, stdout, stderr = execute(cmd, timeout=self.timeout)
                     if status != 0:
                         msg = f"command '{cmd}' failed with error: '{stderr}'"
                         logger.warning(msg)
                         continue
-                    for _, _, fn in member:
+                    for _, _, fn in batch:
                         relocated.append((head, tail, fn))
 
                 # If files were transferred directly to the buffer on the
@@ -171,12 +182,8 @@ class Porter(Command):
                     continue
 
                 # Transfer files from the staging area to the buffer.
-                relocated.clear()
-
-                batch = [(stage, tail, fn) for fn in filenames]
-                if self.batch_mode:
-                    batch = [batch]
                 dest = os.path.join(buffer, tail)
+                relocated.clear()
 
                 tpl = self.cmds["remote"]
                 cmd = tpl.format(**self.params, command=f"mkdir -p {dest}")
@@ -187,17 +194,23 @@ class Porter(Command):
                     continue
 
                 tpl = self.cmds["remote"]
-                for member in batch:
-                    if isinstance(member, tuple):
-                        member = [member]
-                    src = " ".join([os.path.join(*t) for t in member])
+                files = [(stage, tail, fn) for fn in filenames]
+
+                # Divide files into batches. If batch mode is enabled,
+                # all files are grouped into a single batch. Otherwise,
+                # each batch consists of a single file.
+                batch_size = len(files) if self.batch_mode else 1
+                batches = [files[i:i+batch_size]
+                           for i in range(0, len(files), batch_size)]
+                for batch in batches:
+                    src = " ".join([os.path.join(*t) for t in batch])
                     cmd = tpl.format(**self.params, command=f"mv {src} {dest}")
                     status, stdout, stderr = execute(cmd, timeout=self.timeout)
                     if status != 0:
                         msg = f"Command '{cmd}' failed with error: '{stderr}'"
                         logger.warning(msg)
                         continue
-                    for _, _, fn in member:
+                    for _, _, fn in batch:
                         relocated.append((head, tail, fn))
 
                 while relocated:
