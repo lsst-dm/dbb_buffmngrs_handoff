@@ -1,6 +1,4 @@
-#!/usr/bin/env python
-
-# This file is part of dbb_buffer_mngr.
+# This file is part of dbb_buffmngrs_handoff.
 #
 # Developed for the LSST Data Management System.
 # This product includes software developed by the LSST Project
@@ -20,9 +18,33 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+from dataclasses import dataclass
 
-from lsst.dbb.buffmngrs.handoff.manager import main
+
+__all__ = ["Defaults"]
 
 
-if __name__ == "__main__":
-    main()
+@dataclass
+class Defaults:
+    """Default values for general settings.
+    """
+
+    chunk_size = 10
+    """Number of files to processes by a transfer thread in a single session.
+    """
+
+    timeout = None
+    """Time (in sec.) after a shell command will be terminated.
+    """
+
+    pause = 1
+    """Time (in sec.) a thread spent idling after a session is finished.
+    """
+
+    num_threads = 1
+    """Number of transfer threads to run concurrently.
+    """
+
+    expiration_time = 86400
+    """Time (in sec.) after an empty directories in the buffer will be removed.
+    """

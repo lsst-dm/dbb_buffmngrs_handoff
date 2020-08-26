@@ -1,3 +1,7 @@
+database:
+  engine: "sqlite:///handoff.db"
+  echo: false
+  pool_type: QueuePool
 handoff:
   buffer: /data/buffer
   holding: /data/holding
@@ -7,8 +11,8 @@ endpoint:
   buffer: /data/buffer
   staging: /data/staging
   commands:
-    remote: "ssh -l {user} {host} \"{command}\""
-    transfer: "scp -Bpq {file} {user}@{host}:{dest}"
+    remote: "ssh {user}@{host} \"{command}\""
+    transfer: "bbcp {file} {user}@{host}:{dest}"
 logging:
   format: "%(asctime)s:%(name)s:%(levelname)s:%(message)s"
   file: null
@@ -16,6 +20,6 @@ logging:
 general:
   chunk_size: 1
   timeout: null
-  transfer_pool: 1
+  num_threads: 1
   expiration_time: 86400
   pause: 1
