@@ -20,25 +20,23 @@ called **holding area**.
 Prerequisites
 ^^^^^^^^^^^^^
 
-DBB handoff buffer manager uses internally ``scp`` to transfer file to the
-endpoint site, thus you will need:
+DBB handoff buffer manager does not have any internal mechanism for
+transferring files to a remote location.  It will use whatever tool you
+specify as a transfer command in its configuration file.  It is your
+responsibility to make sure that the tool you specified, such as ``scp``,
+``rsync``, or ``bbcp``, is installed on your system.
 
-#. have ``scp`` installed on you machine (Well, duh!),
-#. a user account on *the endpoint site* with a passwordless login enabled.
-
-Refer to the documentation of your Linux distribution how to install ``scp``.
-For example, on Centos you can install it with
-
-.. code-block::
-
-   sudo yum install openssh-clients
+Aforementioned tools use SSH protocol to initiate connection to the remote
+host which requires some form of authentication.  The DBB buffer manager
+won't be able to operate unattended if a passwordless login is *not* enabled
+for the user account on *the endpoint site*.
 
 To enable passwordless login, you need to have a SSH key pair and copy the
-public SSH key of the user who will be running the DBB handoff buffer manager to
-``authorized_keys`` of the user on *the endpoint* site.
+public SSH key of the user who will be running the DBB handoff buffer manager
+to ``~/.ssh/authorized_keys`` file of the user on *the endpoint* site.
 
 The SSH key must allow for unsupervised logins. So either you need a one with
-an empty passphrase or you need set up `ssh-agent` to manage your key.
+an empty passphrase or you need set up ``ssh-agent`` to manage your key.
 
 You may find more information how to generate and manage SSH keys for example
 `here`__ or `here`__.
@@ -47,7 +45,7 @@ You may find more information how to generate and manage SSH keys for example
 .. __: https://help.github.com/en/github/authenticating-to-github/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent
 
 Finally, to run the manager, you'll need a minimal LSST stack installation,
-i.e, with `Miniconda`__, `EUPS`__ and ``base`` meta package installed.
+i.e, with `Miniconda`_, `EUPS`_ and ``base`` meta package installed.
 
 .. _Miniconda: https://docs.conda.io/en/latest/miniconda.html
 .. _EUPS: https://github.com/RobertLuptonTheGood/eups
@@ -85,14 +83,14 @@ Set it up and build:
    scons
 
 If you would like to select a specific version of the manager, run ``git
-checkout <ver>`` *before* ``setup -r .`` where ``<ver>`` is either a existing
-git tag or branch.
+checkout <ver>`` *before* ``setup -r .`` where ``<ver>`` is either an existing
+git tag or a branch.
 
 Test DBB handoff buffer manager installation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-After you’ve installed DBB handoff buffer manager, you can run `transd.py
---help` to check if the installation was successful and see its usage.
+After you’ve installed DBB handoff buffer manager, you can run ``hdfmgr
+--help`` to check if the installation was successful and see its CLI.
 
 Configure DBB handoff buffer manger
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -119,6 +117,7 @@ While configuration of the handoff site is essentially self-explanatory, the
 specification of the endpoint site requires some clarification.
 
 In the ``endpoint`` section, at minimum, you need to define:
+
 * ``buffer``: endpoint's buffer, 
 * ``staging``: staging area for files being transferred (see note below)
 * ``commands``: commands describing how the manager should transfer files and
@@ -175,27 +174,82 @@ execution, please keep in mind that:
 .. note::
 
    To see other supported configuration options, look at example
-   configuration in ``etc/trans.yaml``in the DBB handoff buffer manager
+   configuration in ``etc/config.yaml`` in the DBB handoff buffer manager
    repository.
+
+Configure DBB handoff manager's database
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The manager uses `SQLite`_ database to store various information about files
+it transferred as well as transfer attempts it made. You need to provide
+location of this database in the configuration file. For example,
+
+.. code-block:: yaml
+
+   database:
+     engine: "sqlite:///handoff.db"
+
+will instruct the manager to look for the data base in ``handoff.db`` file
+located in the current directory.
+
+.. note::
+
+   Specifying a valid connect string for SQLite database requires some care.
+   Follow `this`__ link for more details.
+
+.. __: https://docs.sqlalchemy.org/en/13/dialects/sqlite.html?highlight=sqlite#connect-strings
+
+If the database doesn't exist yet, you can easily create it with
+
+.. code-block:: bash
+
+   hdfmgr initdb config.yaml
+
+.. _SQLite: https://sqlite.org/index.html
 
 Run DBB handoff buffer manager
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Having the handoff and endpoint sites defined in the `transd.yaml`, you can
+Having the handoff and endpoint sites defined in the ``config.yaml``, you can
 start DBB handoff buffer manager with:
 
 .. code-block:: bash
 
-   transd.py -c transd.yml
+   hdfmgr run config.yaml
 
 .. note::
 
    By default, all warnings and error will be displayed on stderr. You can
-   change this behavior by specifing a log file in buffer manager's
+   change this behavior by specifying a log file in buffer manager's
    configuration (see available options in *logging* section).
 
 Stop DBB handoff buffer manager
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Once started, DBB handoff buffer manager will keep monitoring the buffer until
-it is explicitly terminated. You can stop it by pressing ``Ctrl+C``.
+Once started, the DBB handoff buffer manager will keep monitoring the
+buffer until it is explicitly terminated.
+
+To stop DBB handoff buffer manager, find the process id and terminate it bu
+sending SIGTERM.
+
+.. code-block:: bash
+
+   kill -15 `pidof hdfmgr`
+
+.. warning::
+
+   If you have multiple DBB handoff managers running on you system, find the
+   process id of the specific handoff manager with
+
+   .. code-block::
+
+      ps aux | grep hdfmgr
+
+   and terminate them selectively with
+
+   .. code-block::
+
+      kill -15 HDFMGR_ID
+
+   instead where HDFMGR_ID is the process id of the handoff manager you
+   want to terminate.
