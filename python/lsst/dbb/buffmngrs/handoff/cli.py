@@ -28,7 +28,7 @@ import yaml
 from sqlalchemy.exc import DBAPIError, SQLAlchemyError
 from .declaratives import Base
 from .manager import Manager
-from .utils import setup_dbb_conn, setup_logging
+from .utils import setup_db_conn, setup_logging
 from .validation import SCHEMA
 
 
@@ -63,7 +63,7 @@ def initdb(filename, validate):
     setup_logging(options=config)
 
     config = configuration["database"]
-    engine = setup_dbb_conn(config)
+    engine = setup_db_conn(config)
     try:
         Base.metadata.create_all(engine)
     except (DBAPIError, SQLAlchemyError) as ex:
@@ -95,7 +95,7 @@ def dropdb(filename, validate):
     setup_logging(options=config)
 
     config = configuration["database"]
-    engine = setup_dbb_conn(config)
+    engine = setup_db_conn(config)
     try:
         Base.metadata.drop_all(engine)
     except (DBAPIError, SQLAlchemyError) as ex:

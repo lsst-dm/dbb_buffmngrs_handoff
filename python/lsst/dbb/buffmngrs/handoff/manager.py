@@ -35,7 +35,7 @@ from . import Eraser, Finder, Macro, Mover, Porter, Wiper
 from .declaratives import Batch, File
 from .defaults import Defaults
 from .messages import FileMsg
-from .utils import get_checksum, get_chunk, setup_dbb_conn
+from .utils import get_checksum, get_chunk, setup_db_conn
 
 
 __all__ = ["Manager"]
@@ -64,7 +64,7 @@ class Manager(object):
     def __init__(self, configuration):
         # Set up database connection.
         config = configuration["database"]
-        engine = setup_dbb_conn(config)
+        engine = setup_db_conn(config)
         Session = sessionmaker(bind=engine)
         self.session = Session()
 

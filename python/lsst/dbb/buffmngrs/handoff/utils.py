@@ -33,7 +33,7 @@ __all__ = [
     "get_checksum",
     "get_chunk",
     "run_continuously",
-    "setup_dbb_conn",
+    "setup_db_conn",
     "setup_logging"
 ]
 
@@ -115,7 +115,7 @@ def run_continuously(cmd, pause=1):
         time.sleep(pause)
 
 
-def setup_dbb_conn(config):
+def setup_db_conn(config):
     """Create a database connection.
 
     Parameters
