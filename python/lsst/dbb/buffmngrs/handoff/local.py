@@ -30,7 +30,7 @@ from .abcs import Command
 from .messages import FileMsg
 
 
-__all__ = ["Finder",  "Eraser", "Mover"]
+__all__ = ["Finder", "Eraser", "Mover"]
 
 
 logger = logging.getLogger(__name__)
