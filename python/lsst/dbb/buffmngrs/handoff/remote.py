@@ -18,6 +18,8 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""Definitions of commands that need to be executed on the endpoint site.
+"""
 
 import datetime
 import dataclasses

@@ -18,6 +18,8 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""Specifications of messages allowed in inter-thread/command communication.
+"""
 from dataclasses import dataclass
 
 
