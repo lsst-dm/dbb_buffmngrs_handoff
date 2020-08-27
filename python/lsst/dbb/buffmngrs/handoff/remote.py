@@ -160,7 +160,6 @@ class Porter(Command):
                 # -----------------------
                 dest = os.path.join(stage, tail)
                 relocated = []
-                total = datetime.timedelta()
 
                 # Create a relevant subdirectory in the staging area.
                 tpl = self.cmds["remote"]
@@ -169,7 +168,7 @@ class Porter(Command):
                 status, _, stderr, dur = execute(cmd, timeout=self.timeout)
                 for item in transfers:
                     item.pre_start = start.timestamp()
-                    item.pre_duration = total.total_seconds()
+                    item.pre_duration = dur.total_seconds()
                     item.status = status
                     item.error = stderr
                 if status != 0:
