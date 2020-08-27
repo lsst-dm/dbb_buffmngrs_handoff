@@ -54,9 +54,9 @@ def initdb(filename, validate):
         try:
             jsonschema.validate(instance=configuration, schema=schema)
         except jsonschema.ValidationError as ex:
-            raise ValueError(f"configuration error: {ex.message}.")
+            raise ValueError(f"configuration error: {ex}.")
         except jsonschema.SchemaError as ex:
-            raise ValueError(f"schema error: {ex.message}.")
+            raise ValueError(f"schema error: {ex}.")
         return
 
     config = configuration.get("logging", None)
@@ -67,7 +67,7 @@ def initdb(filename, validate):
     try:
         Base.metadata.create_all(engine)
     except (DBAPIError, SQLAlchemyError) as ex:
-        msg = f"cannot create tables: {ex.message}"
+        msg = f"cannot create tables: {ex}"
         logger.error(msg)
         raise RuntimeError(msg)
 
@@ -86,9 +86,9 @@ def dropdb(filename, validate):
         try:
             jsonschema.validate(instance=configuration, schema=schema)
         except jsonschema.ValidationError as ex:
-            raise ValueError(f"configuration error: {ex.message}.")
+            raise ValueError(f"configuration error: {ex}.")
         except jsonschema.SchemaError as ex:
-            raise ValueError(f"schema error: {ex.message}.")
+            raise ValueError(f"schema error: {ex}.")
         return
 
     config = configuration.get("logging", None)
@@ -99,7 +99,7 @@ def dropdb(filename, validate):
     try:
         Base.metadata.drop_all(engine)
     except (DBAPIError, SQLAlchemyError) as ex:
-        msg = f"cannot remove tables: {ex.message}"
+        msg = f"cannot remove tables: {ex}"
         logger.error(msg)
         raise RuntimeError(msg)
 
@@ -116,9 +116,9 @@ def run(filename, validate):
         try:
             jsonschema.validate(instance=configuration, schema=schema)
         except jsonschema.ValidationError as ex:
-            raise ValueError(f"configuration error: {ex.message}.")
+            raise ValueError(f"configuration error: {ex}.")
         except jsonschema.SchemaError as ex:
-            raise ValueError(f"schema error: {ex.message}.")
+            raise ValueError(f"schema error: {ex}.")
         return
 
     config = configuration.get("logging", None)
