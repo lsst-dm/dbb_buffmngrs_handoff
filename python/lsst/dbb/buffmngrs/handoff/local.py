@@ -18,20 +18,25 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""Definitions of command that need to be executed on the handoff site.
+"""
 
 import logging
 import os
 import shutil
 import time
+from datetime import datetime
 from .abcs import Command
+from .messages import FileMsg
 
-__all__ = ["Scanner", "Mover", "Eraser"]
+
+__all__ = ["Finder", "Eraser", "Mover"]
 
 
 logger = logging.getLogger(__name__)
 
 
-class Scanner(Command):
+class Finder(Command):
     """Command finding out all files in the buffer on the handoff site.
 
     Parameters
@@ -60,12 +65,23 @@ class Scanner(Command):
     def run(self):
         """Scan recursively the directory to find all files it contains.
         """
-        for topdir, subdirs, filenames in os.walk(self.root):
+        for topdir, _, filenames in os.walk(self.root):
             for name in filenames:
                 path = os.path.join(topdir, name)
                 tail = os.path.relpath(path, start=self.root)
                 dirname, basename = os.path.split(tail)
-                self.queue.put((self.root, dirname, basename))
+                try:
+                    status = os.stat(path)
+                except FileNotFoundError as ex:
+                    logger.error(f"{ex}")
+                else:
+                    msg = FileMsg()
+                    msg.head = self.root
+                    msg.tail = dirname
+                    msg.name = basename
+                    msg.size = status.st_size
+                    msg.timestamp = status.st_mtime
+                    self.queue.put(msg)
 
 
 class Mover(Command):
@@ -75,8 +91,10 @@ class Mover(Command):
     ----------
     config : dict
         Configuration of the handoff site.
-    queue : queue.Queue
-        Container where the files need to be moved are stored.
+    inp : queue.Queue
+        Input message queue with files to move.
+    out : queue.Queue
+        Output message queue with files that were moved.
 
     Raises
     ------
@@ -84,7 +102,7 @@ class Mover(Command):
        If holding area is not specified, does not exist, or is not a directory.
     """
 
-    def __init__(self, config, queue):
+    def __init__(self, config, inp, out):
         try:
             path = config["holding"]
         except KeyError:
@@ -96,22 +114,27 @@ class Mover(Command):
             logger.critical(msg)
             raise ValueError(msg)
         self.root = path
-        self.queue = queue
+        self.inp = inp
+        self.out = out
 
     def run(self):
         """Move files from the buffer to the holding area.
         """
-        while not self.queue.empty():
-            topdir, subdir, file = self.queue.get(block=False)
-            os.makedirs(os.path.join(self.root, subdir), exist_ok=True)
-            src = os.path.join(topdir, subdir, file)
-            dst = os.path.join(self.root, subdir, file)
-            logger.info(f"Moving '{src}' to '{dst}'.")
+        while not self.inp.empty():
+            msg = self.inp.get(block=False)
+            os.makedirs(os.path.join(self.root, msg.tail), exist_ok=True)
+            src = os.path.join(msg.head, msg.tail, msg.name)
+            dst = os.path.join(self.root, msg.tail, msg.name)
+            logger.debug(f"Moving '{src}' to '{dst}'.")
             try:
                 shutil.move(src, dst)
             except OSError as ex:
                 logger.warning(f"Cannot move '{src}': {ex}.")
                 continue
+            else:
+                msg.head = self.root
+                msg.timestamp = datetime.now().timestamp()
+                self.out.put(msg)
 
 
 class Eraser(Command):
@@ -153,7 +176,7 @@ class Eraser(Command):
         """Remove old, empty directories from the buffer.
         """
         empty_dirs = []
-        for topdir, subdirs, files in os.walk(self.root, topdown=False):
+        for topdir, subdirs, _ in os.walk(self.root, topdown=False):
             for name in subdirs:
                 path = os.path.join(topdir, name)
                 if len(os.listdir(path)) == 0:

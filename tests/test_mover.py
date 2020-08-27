@@ -25,6 +25,7 @@ import shutil
 import tempfile
 import unittest
 from lsst.dbb.buffmngrs.handoff import Mover
+from lsst.dbb.buffmngrs.handoff.messages import FileMsg
 
 
 class MoverTestCase(unittest.TestCase):
@@ -39,11 +40,13 @@ class MoverTestCase(unittest.TestCase):
             os.close(fd)
         self.files = files.values()
 
-        self.queue = queue.Queue()
+        self.inp = queue.Queue()
+        self.out = queue.Queue()
         for path in self.files:
-            tail = os.path.relpath(path, start=self.src)
-            dn, bn = os.path.split(tail)
-            self.queue.put((self.src, dn, bn))
+            path = os.path.relpath(path, start=self.src)
+            tail, name = os.path.split(path)
+            msg = FileMsg(head=self.src, tail=tail, name=name)
+            self.inp.put(msg)
 
     def tearDown(self):
         shutil.rmtree(self.src)
@@ -53,21 +56,21 @@ class MoverTestCase(unittest.TestCase):
         """Test if Mover complains about an invalid configuration.
         """
         config = dict()
-        args = [config, self.queue]
+        args = [config, self.inp, self.out]
         self.assertRaises(ValueError, Mover, *args)
 
     def testInvalidBuffer(self):
         """Test if Mover complains about a non-existing buffer.
         """
         config = dict(holding="/not/a/path")
-        args = [config, self.queue]
+        args = [config, self.inp, self.out]
         self.assertRaises(ValueError, Mover, *args)
 
     def testRun(self):
         """Test if Mover moves files as expected.
         """
         config = dict(holding=self.dst)
-        cmd = Mover(config, self.queue)
+        cmd = Mover(config, self.inp, self.out)
         cmd.run()
 
         src = set()

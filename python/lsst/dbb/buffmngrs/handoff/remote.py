@@ -18,16 +18,20 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""Definitions of commands that need to be executed on the endpoint site.
+"""
 
-import collections
+import datetime
+import dataclasses
 import errno
 import logging
 import os
-import queue
 import re
 import shlex
 import subprocess
 from .abcs import Command
+from .messages import TransferMsg
+from .utils import get_chunk
 
 __all__ = ['Porter', 'Wiper']
 
@@ -118,104 +122,157 @@ class Porter(Command):
         buffer = self.params["buffer"]
         stage = self.params.get("staging", buffer)
         while not self.todo.empty():
-            # Grab a bunch of files from the work queue.
-            chunk = []
-            for _ in range(self.chunk_size):
-                try:
-                    topdir, subdir, file = self.todo.get(block=False)
-                except queue.Empty:
-                    break
-                else:
-                    chunk.append((topdir, subdir, file))
-            if not chunk:
+            # Grab a bunch of file items from the input queue.
+            files = get_chunk(self.todo, size=self.chunk_size)
+            if not files:
                 continue
 
             # Group files based on their location as only the files sharing the
             # same location can be transferred as a group with a single
             # transfer command when the batch mode is enabled.
             mapping = {}
-            for topdir, subdir, filename in chunk:
-                mapping.setdefault((topdir, subdir), []).append(filename)
+            for item in files:
+                head, tail, *rest = dataclasses.astuple(item)
+                mapping.setdefault((head, tail), []).append(item)
 
             # Transfer files to the handoff site to the endpoint site.
-            for location, filenames in mapping.items():
+            for location, files in mapping.items():
                 head, tail = location
 
-                # Transfer files to the staging area on the endpoint site.
-                dest = os.path.join(stage, tail)
-                relocated = collections.deque()
+                filenames = [item.name for item in files]
+                sizes = {item.name: item.size for item in files}
 
+                # Divide files into batches. If batch mode is enabled,
+                # all files grouped into a single batch. Otherwise,
+                # each batch will consist of a single file.
+                batch_size = len(filenames) if self.batch_mode else 1
+                batches = [filenames[i:i+batch_size]
+                           for i in range(0, len(filenames), batch_size)]
+
+                # Create corresponding number of transfer items to put in the
+                # output queue.
+                transfers = [TransferMsg() for _ in batches]
+                for batch, transfer in zip(batches, transfers):
+                    transfer.files = tuple((head, tail, fn) for fn in batch)
+                    transfer.size = sum(sizes[fn] for fn in batch)
+
+                # 1. PRE-TRANSFER actions
+                # -----------------------
+                dest = os.path.join(stage, tail)
+                relocated = []
+
+                # Create a relevant subdirectory in the staging area.
                 tpl = self.cmds["remote"]
                 cmd = tpl.format(**self.params, command=f"mkdir -p {dest}")
-                status, stdout, stderr = execute(cmd, timeout=self.timeout)
+                start = datetime.datetime.now()
+                status, _, stderr, dur = execute(cmd, timeout=self.timeout)
+                for item in transfers:
+                    item.pre_start = start.timestamp()
+                    item.pre_duration = dur.total_seconds()
+                    item.status = status
+                    item.error = stderr
                 if status != 0:
+                    self._flush(transfers)
                     msg = f"Command '{cmd}' failed with error: '{stderr}'"
                     logger.warning(msg)
                     continue
 
+                # 2. TRANSFER
+                # -----------
                 tpl = self.cmds["transfer"]
-                files = [(head, tail, fn) for fn in filenames]
-
-                # Divide files into batches. If batch mode is enabled,
-                # all files are grouped into a single batch. Otherwise,
-                # each batch consists of a single file.
-                batch_size = len(files) if self.batch_mode else 1
-                batches = [files[i:i+batch_size]
-                           for i in range(0, len(files), batch_size)]
-                for batch in batches:
-                    src = " ".join([os.path.join(*t) for t in batch])
+                for batch, transfer in zip(batches, transfers):
+                    src = " ".join([os.path.join(head, tail, name)
+                                    for name in batch])
                     cmd = tpl.format(**self.params, source=src, dest=dest)
-                    status, stdout, stderr = execute(cmd, timeout=self.timeout)
+                    start = datetime.datetime.now()
+                    status, _, stderr, dur = execute(cmd, timeout=self.timeout)
+                    transfer.trans_start = start.timestamp()
+                    transfer.trans_duration = dur.total_seconds()
+                    transfer.status = status
+                    transfer.error = stderr
+
                     if status != 0:
+                        self._flush([transfer])
                         msg = f"command '{cmd}' failed with error: '{stderr}'"
                         logger.warning(msg)
                         continue
-                    for _, _, fn in batch:
-                        relocated.append((head, tail, fn))
+
+                    # If transfer successfully, calculate transfer rate.
+                    transfer.rate = transfer.size / dur.total_seconds()  # B/s
+                    transfer.rate /= pow(1024, 2)                        # MB/s
+
+                    relocated.append((batch, transfer))
+
+                # Recreate lists without items corresponding to failed
+                # transfers.
+                batches, transfers = [], []
+                for batch, transfer in relocated:
+                    batches.append(batch)
+                    transfers.append(transfer)
 
                 # If files were transferred directly to the buffer on the
                 # endpoint site, skip the next step.
                 if stage == buffer:
-                    while relocated:
-                        _, _, fn = relocated.popleft()
-                        self.done.put(head, tail, fn)
+                    self._flush(transfers)
                     continue
 
-                # Transfer files from the staging area to the buffer.
+                # 3. POST-TRANSFER actions
+                # ------------------------
                 dest = os.path.join(buffer, tail)
-                relocated.clear()
+                completed = []
+                total = datetime.timedelta()
 
+                # Create a relevant subdirectory in the buffer.
                 tpl = self.cmds["remote"]
                 cmd = tpl.format(**self.params, command=f"mkdir -p {dest}")
-                status, stdout, stderr = execute(cmd, timeout=self.timeout)
+                start = datetime.datetime.now()
+                status, _, stderr, dur = execute(cmd, timeout=self.timeout)
+                total += dur
+                for item in transfers:
+                    item.post_start = start.timestamp()
+                    item.post_duration = total
+                    item.status = status
+                    item.error = stderr
+
                 if status != 0:
+                    self._flush(transfers)
                     msg = f"Command '{cmd}' failed with error: '{stderr}'"
                     logger.warning(msg)
                     continue
 
+                # Move files from the staging area to the buffer.
                 tpl = self.cmds["remote"]
-                files = [(stage, tail, fn) for fn in filenames]
-
-                # Divide files into batches. If batch mode is enabled,
-                # all files are grouped into a single batch. Otherwise,
-                # each batch consists of a single file.
-                batch_size = len(files) if self.batch_mode else 1
-                batches = [files[i:i+batch_size]
-                           for i in range(0, len(files), batch_size)]
-                for batch in batches:
-                    src = " ".join([os.path.join(*t) for t in batch])
+                for batch, transfer in zip(batches, transfers):
+                    src = " ".join([os.path.join(stage, tail, name)
+                                    for name in batch])
                     cmd = tpl.format(**self.params, command=f"mv {src} {dest}")
-                    status, stdout, stderr = execute(cmd, timeout=self.timeout)
+                    start = datetime.datetime.now()
+                    status, _, stderr, dur = execute(cmd, timeout=self.timeout)
+                    transfer.post_start = start.timestamp()
+                    transfer.post_duration = (total+dur).total_seconds()
+                    transfer.status = status
+                    transfer.error = stderr
+
                     if status != 0:
+                        self._flush([transfer])
                         msg = f"Command '{cmd}' failed with error: '{stderr}'"
                         logger.warning(msg)
                         continue
-                    for _, _, fn in batch:
-                        relocated.append((head, tail, fn))
 
-                while relocated:
-                    _, _, fn = relocated.popleft()
-                    self.done.put((head, tail, fn))
+                    completed.append(transfer)
+
+                self._flush([transfer for transfer in completed])
+
+    def _flush(self, items):
+        """Enqueue messages in the output queue.
+
+        Parameters
+        ----------
+        items : `list`
+            List of items to enqueue in the output queue.
+        """
+        for item in items:
+            self.done.put(item)
 
 
 class Wiper(Command):
@@ -261,7 +318,7 @@ class Wiper(Command):
         args = dict(command=f"find {self.stage} -type d -empty -mindepth 1 "
                             f"-delete")
         cmd = tpl.format(**self.params, **args)
-        status, stdout, stderr = execute(cmd, timeout=self.time)
+        status, _, stderr, _ = execute(cmd, timeout=self.time)
         if status != 0:
             msg = f"Command '{cmd}' failed with error: '{stderr}'"
             logger.warning(msg)
@@ -281,11 +338,12 @@ def execute(cmd, timeout=None):
 
     Returns
     -------
-    (int, basestring, basestring)
-        Shell command exit status, stdout, and stderr
+    (int, str, str, datetime.timedelta)
+        Shell command exit status, stdout, stderr, and duration.
     """
     logger.debug(f"Executing {cmd}.")
 
+    start = datetime.datetime.now()
     args = shlex.split(cmd)
     opts = dict(capture_output=True, timeout=timeout, check=True, text=True)
     try:
@@ -299,7 +357,9 @@ def execute(cmd, timeout=None):
     else:
         status = proc.returncode
         stdout, stderr = proc.stdout, proc.stderr
+    end = datetime.datetime.now()
+    duration = end - start
 
-    msg = f"(status: {status}, output: '{stdout}', errors: '{stderr}')."
-    logger.debug("Finished " + msg)
-    return status, stdout, stderr
+    logger.debug(f"Execution completed in {duration.total_seconds()}: "
+                 f"(status: {status}, output: '{stdout}', error: '{stderr}').")
+    return status, stdout, stderr, duration

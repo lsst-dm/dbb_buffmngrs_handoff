@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# This file is part of dbb_buffer_mngr.
+# This file is part of dbb_buffmngrs_handoff.
 #
 # Developed for the LSST Data Management System.
 # This product includes software developed by the LSST Project
@@ -20,9 +20,9 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
-from lsst.dbb.buffmngrs.handoff.manager import main
+import sys
+from lsst.dbb.buffmngrs.handoff.cli import main
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

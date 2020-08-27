@@ -18,6 +18,8 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""A schema for validating configuration files.
+"""
 
 __all__ = ["SCHEMA"]
 
@@ -59,8 +61,8 @@ SCHEMA = {
                 "file": {
                     "anyOf": [
                         {"type": "string"},
-                        {"type": "null"},
-                     ]
+                        {"type": "null"}
+                    ]
                 },
                 "level": {
                     "type": "string",
@@ -81,8 +83,8 @@ SCHEMA = {
                 },
                 "timeout": {
                     "anyOf": [
-                            {"type": "integer", "minimum": 1},
-                            {"type": "null"}
+                        {"type": "integer", "minimum": 1},
+                        {"type": "null"}
                     ]
                 },
                 "expiration_time": {

@@ -25,7 +25,7 @@ import queue
 import shutil
 import tempfile
 import unittest
-from lsst.dbb.buffmngrs.handoff import Scanner
+from lsst.dbb.buffmngrs.handoff import Finder
 
 
 class ScannerTestCase(unittest.TestCase):
@@ -44,20 +44,20 @@ class ScannerTestCase(unittest.TestCase):
         """
         config = dict()
         args = [config, self.queue]
-        self.assertRaises(ValueError, Scanner, *args)
+        self.assertRaises(ValueError, Finder, *args)
 
     def testInvalidBuffer(self):
         """Test if Scanner complains about a non-existing buffer.
         """
         config = dict(buffer="/not/a/path")
         args = [config, self.queue]
-        self.assertRaises(ValueError, Scanner, *args)
+        self.assertRaises(ValueError, Finder, *args)
 
     def testEmptyDir(self):
         """Test if Scanner handles empty directories correctly.
         """
         config = dict(buffer=self.root)
-        s = Scanner(config, self.queue)
+        s = Finder(config, self.queue)
         s.run()
         self.assertEqual(self.queue.qsize(), 0)
 
@@ -71,6 +71,6 @@ class ScannerTestCase(unittest.TestCase):
             os.close(fd)
 
         config = dict(buffer=self.root)
-        s = Scanner(config, self.queue)
+        s = Finder(config, self.queue)
         s.run()
         self.assertEqual(self.queue.qsize(), 3)
