@@ -33,7 +33,11 @@ class Defaults:
     """
 
     chunk_size = 10
-    """Number of files to processes by a transfer thread in a single session.
+    """Maximal number of messages/items to retrieve from the input queue.
+
+    In case of file transfers it corresponds to the maximal number of files
+    that will be transferred to the endpoint site with a single transfer
+    command, e.g., scp or bbcp.
     """
 
     timeout = None

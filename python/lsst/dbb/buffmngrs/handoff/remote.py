@@ -208,7 +208,7 @@ class Porter(Command):
 
                     relocated.append((batch, transfer))
 
-                # Remove batches and transfer items corresponding to failed
+                # Recreate lists without items corresponding to failed
                 # transfers.
                 batches, transfers = [], []
                 for batch, transfer in relocated:

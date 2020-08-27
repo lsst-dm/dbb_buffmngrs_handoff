@@ -129,6 +129,6 @@ def run(filename, validate):
 
 
 def main():
-    """Start microservices for DBB endpoint manager.
+    """Start microservices for DBB handoff manager.
     """
     return cli()
