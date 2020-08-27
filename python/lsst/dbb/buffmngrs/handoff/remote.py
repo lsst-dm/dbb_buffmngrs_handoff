@@ -224,7 +224,7 @@ class Porter(Command):
                 # 3. POST-TRANSFER actions
                 # ------------------------
                 dest = os.path.join(buffer, tail)
-                relocated.clear()
+                completed = []
                 total = datetime.timedelta()
 
                 # Create a relevant subdirectory in the buffer.
@@ -266,9 +266,9 @@ class Porter(Command):
                         logger.warning(msg)
                         continue
 
-                    relocated.append((batch, transfer))
+                    completed.append(transfer)
 
-                self._flush([transfer for _, transfer in relocated])
+                self._flush([transfer for transfer in completed])
 
     def _flush(self, items):
         """Enqueue messages in the output queue.
@@ -325,7 +325,7 @@ class Wiper(Command):
         args = dict(command=f"find {self.stage} -type d -empty -mindepth 1 "
                             f"-delete")
         cmd = tpl.format(**self.params, **args)
-        status, stdout, stderr, duration = execute(cmd, timeout=self.time)
+        status, stdout, stderr, _ = execute(cmd, timeout=self.time)
         if status != 0:
             msg = f"Command '{cmd}' failed with error: '{stderr}'"
             logger.warning(msg)
