@@ -1,5 +1,5 @@
 database:
-  engine: "sqlite:///handoff.db"
+  engine: "sqlite:////path/to/sqlite.db"
   echo: false
   pool_type: QueuePool
 handoff:

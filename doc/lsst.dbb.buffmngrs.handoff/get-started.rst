@@ -187,10 +187,10 @@ location of this database in the configuration file. For example,
 .. code-block:: yaml
 
    database:
-     engine: "sqlite:///handoff.db"
+     engine: "sqlite:////path/to/sqlite.db"
 
-will instruct the manager to look for the data base in ``handoff.db`` file
-located in the current directory.
+will point the manager to access the data base in the file located at
+``/path/to/sqlite.db``.
 
 .. note::
 
