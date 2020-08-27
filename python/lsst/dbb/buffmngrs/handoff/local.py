@@ -65,7 +65,7 @@ class Finder(Command):
     def run(self):
         """Scan recursively the directory to find all files it contains.
         """
-        for topdir, subdirs, filenames in os.walk(self.root):
+        for topdir, _, filenames in os.walk(self.root):
             for name in filenames:
                 path = os.path.join(topdir, name)
                 tail = os.path.relpath(path, start=self.root)
@@ -176,7 +176,7 @@ class Eraser(Command):
         """Remove old, empty directories from the buffer.
         """
         empty_dirs = []
-        for topdir, subdirs, files in os.walk(self.root, topdown=False):
+        for topdir, subdirs, _ in os.walk(self.root, topdown=False):
             for name in subdirs:
                 path = os.path.join(topdir, name)
                 if len(os.listdir(path)) == 0:

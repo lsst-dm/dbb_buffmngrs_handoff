@@ -26,7 +26,6 @@ import dataclasses
 import errno
 import logging
 import os
-import queue
 import re
 import shlex
 import subprocess
@@ -167,9 +166,7 @@ class Porter(Command):
                 tpl = self.cmds["remote"]
                 cmd = tpl.format(**self.params, command=f"mkdir -p {dest}")
                 start = datetime.datetime.now()
-                status, stdout, stderr, dur = \
-                    execute(cmd, timeout=self.timeout)
-                total += dur
+                status, _, stderr, dur = execute(cmd, timeout=self.timeout)
                 for item in transfers:
                     item.pre_start = start.timestamp()
                     item.pre_duration = total.total_seconds()
@@ -189,8 +186,7 @@ class Porter(Command):
                                     for name in batch])
                     cmd = tpl.format(**self.params, source=src, dest=dest)
                     start = datetime.datetime.now()
-                    status, stdout, stderr, dur = \
-                        execute(cmd, timeout=self.timeout)
+                    status, _, stderr, dur = execute(cmd, timeout=self.timeout)
                     transfer.trans_start = start.timestamp()
                     transfer.trans_duration = dur.total_seconds()
                     transfer.status = status
@@ -231,8 +227,7 @@ class Porter(Command):
                 tpl = self.cmds["remote"]
                 cmd = tpl.format(**self.params, command=f"mkdir -p {dest}")
                 start = datetime.datetime.now()
-                status, stdout, stderr, dur = \
-                    execute(cmd, timeout=self.timeout)
+                status, _, stderr, dur = execute(cmd, timeout=self.timeout)
                 total += dur
                 for item in transfers:
                     item.post_start = start.timestamp()
@@ -253,8 +248,7 @@ class Porter(Command):
                                     for name in batch])
                     cmd = tpl.format(**self.params, command=f"mv {src} {dest}")
                     start = datetime.datetime.now()
-                    status, stdout, stderr, dur = \
-                        execute(cmd, timeout=self.timeout)
+                    status, _, stderr, dur = execute(cmd, timeout=self.timeout)
                     transfer.post_start = start.timestamp()
                     transfer.post_duration = (total+dur).total_seconds()
                     transfer.status = status
@@ -325,7 +319,7 @@ class Wiper(Command):
         args = dict(command=f"find {self.stage} -type d -empty -mindepth 1 "
                             f"-delete")
         cmd = tpl.format(**self.params, **args)
-        status, stdout, stderr, _ = execute(cmd, timeout=self.time)
+        status, _, stderr, _ = execute(cmd, timeout=self.time)
         if status != 0:
             msg = f"Command '{cmd}' failed with error: '{stderr}'"
             logger.warning(msg)
