@@ -298,7 +298,7 @@ class Manager(object):
                     files.put(item)
 
     def _update_files(self, inp, chunk_size=10):
-        """
+        """Add move time to file database entries.
 
         Parameters
         ----------

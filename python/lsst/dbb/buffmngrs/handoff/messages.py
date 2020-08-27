@@ -25,6 +25,9 @@ from dataclasses import dataclass
 
 @dataclass
 class FileMsg:
+    """A message containing information about a file.
+    """
+
     head: str = None
     """Root directory.
     """
@@ -48,6 +51,9 @@ class FileMsg:
 
 @dataclass
 class TransferMsg:
+    """A message containing information about a transfer batch.
+    """
+
     pre_start: float = None
     """Timestamp showing when pre-transfer actions started.
     """
