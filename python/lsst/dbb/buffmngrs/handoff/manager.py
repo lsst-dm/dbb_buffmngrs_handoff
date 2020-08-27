@@ -44,7 +44,7 @@ __all__ = ["Manager"]
 logger = logging.getLogger(__name__)
 
 
-class Manager(object):
+class Manager:
     """The handoff buffer manager.
 
     The handoff manager transfers file transfers files between a remote
