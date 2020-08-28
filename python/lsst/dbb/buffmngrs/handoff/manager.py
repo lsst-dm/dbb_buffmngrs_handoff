@@ -249,7 +249,7 @@ class Manager:
             items = get_chunk(transfers, size=chunk_size)
 
             batches = []
-            paths = []
+            transferred = []
             for item in items:
                 records = []
                 try:
@@ -281,7 +281,13 @@ class Manager:
                 batch.files.extend(records)
 
                 batches.append(batch)
-                paths.extend(item.files)
+
+                # Create messages corresponding to successfully transferred
+                # files.
+                if item.status == 0:
+                    for head, tail, name in item.files:
+                        item = FileMsg(head=head, tail=tail, name=name)
+                        transferred.append(item)
 
             # Try to commit changes to the database.  If the commit was
             # successful, populate the output queue with files that were
@@ -293,8 +299,7 @@ class Manager:
                 msg = f"adding new transfer batches failed: {ex}"
                 logger.error(msg)
             else:
-                for head, tail, name in paths:
-                    item = FileMsg(head=head, tail=tail, name=name)
+                for item in transferred:
                     files.put(item)
 
     def _update_files(self, inp, chunk_size=10):
