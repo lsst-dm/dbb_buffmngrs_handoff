@@ -254,10 +254,8 @@ class Manager:
                 records = []
                 try:
                     records = self.session.query(File). \
-                        filter(
-                        tuple_(File.relpath, File.filename).
-                            in_([(p, n) for _, p, n in item.files])
-                    ).all()
+                        filter(tuple_(File.relpath, File.filename).
+                               in_([(p, n) for _, p, n in item.files])).all()
                 except (DBAPIError, SQLAlchemyError) as ex:
                     msg = f"retrieving database records of files in a batch " \
                           f"failed: {ex}"
@@ -279,7 +277,6 @@ class Manager:
                     err_msg=item.error
                 )
                 batch.files.extend(records)
-
                 batches.append(batch)
 
                 # Create messages corresponding to successfully transferred
