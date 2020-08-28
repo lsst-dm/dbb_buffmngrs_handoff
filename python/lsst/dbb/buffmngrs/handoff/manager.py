@@ -153,7 +153,7 @@ class Manager:
             self.wiper.run()
             end = time.time()
             duration = end - start
-            logger.info(f"Transfer completed in {duration:.2f} sec.")
+            logger.info(f"Transfer attempts completed in {duration:.2f} sec.")
 
             # Create database entries for the transfers made.
             #
@@ -288,7 +288,7 @@ class Manager:
 
             # Try to commit changes to the database.  If the commit was
             # successful, populate the output queue with files that were
-            # processed.
+            # successfully transferred.
             self.session.add_all(batches)
             try:
                 self.session.commit()
