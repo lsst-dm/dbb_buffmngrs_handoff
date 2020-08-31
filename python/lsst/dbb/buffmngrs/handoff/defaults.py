@@ -32,7 +32,7 @@ class Defaults:
     """Default values for general settings.
     """
 
-    chunk_size = 10
+    chunk_size: int = 10
     """Maximal number of messages/items to retrieve from the input queue.
 
     In case of file transfers it corresponds to the maximal number of files
@@ -40,18 +40,18 @@ class Defaults:
     command, e.g., scp or bbcp.
     """
 
-    timeout = None
+    timeout: int = None
     """Time (in sec.) after a shell command will be terminated.
     """
 
-    pause = 1
+    pause: int = 1
     """Time (in sec.) a thread spent idling after a session is finished.
     """
 
-    num_threads = 1
+    num_threads: int = 1
     """Number of transfer threads to run concurrently.
     """
 
-    expiration_time = 86400
+    expiration_time: int = 86400
     """Time (in sec.) after an empty directories in the buffer will be removed.
     """

@@ -153,7 +153,7 @@ class Manager:
             self.wiper.run()
             end = time.time()
             duration = end - start
-            logger.info(f"Transfer completed in {duration:.2f} sec.")
+            logger.info(f"Transfer attempts completed in {duration:.2f} sec.")
 
             # Create database entries for the transfers made.
             #
@@ -249,15 +249,13 @@ class Manager:
             items = get_chunk(transfers, size=chunk_size)
 
             batches = []
-            paths = []
+            transferred = []
             for item in items:
                 records = []
                 try:
                     records = self.session.query(File). \
-                        filter(
-                        tuple_(File.relpath, File.filename).
-                            in_([(p, n) for _, p, n in item.files])
-                    ).all()
+                        filter(tuple_(File.relpath, File.filename).
+                               in_([(p, n) for _, p, n in item.files])).all()
                 except (DBAPIError, SQLAlchemyError) as ex:
                     msg = f"retrieving database records of files in a batch " \
                           f"failed: {ex}"
@@ -279,13 +277,18 @@ class Manager:
                     err_msg=item.error
                 )
                 batch.files.extend(records)
-
                 batches.append(batch)
-                paths.extend(item.files)
+
+                # Create messages corresponding to successfully transferred
+                # files.
+                if item.status == 0:
+                    for head, tail, name in item.files:
+                        item = FileMsg(head=head, tail=tail, name=name)
+                        transferred.append(item)
 
             # Try to commit changes to the database.  If the commit was
             # successful, populate the output queue with files that were
-            # processed.
+            # successfully transferred.
             self.session.add_all(batches)
             try:
                 self.session.commit()
@@ -293,8 +296,7 @@ class Manager:
                 msg = f"adding new transfer batches failed: {ex}"
                 logger.error(msg)
             else:
-                for head, tail, name in paths:
-                    item = FileMsg(head=head, tail=tail, name=name)
+                for item in transferred:
                     files.put(item)
 
     def _update_files(self, inp, chunk_size=10):
