@@ -209,6 +209,8 @@ class Porter(Command):
                 for batch, transfer in relocated:
                     batches.append(batch)
                     transfers.append(transfer)
+                if not batches:
+                    continue
 
                 # If files were transferred directly to the buffer on the
                 # endpoint site, skip the next step.
