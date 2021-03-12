@@ -20,17 +20,18 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """DBB handoff manager.
 """
-
 import logging
 import os
 import queue
 import time
 from dataclasses import asdict
 from datetime import datetime, timedelta
+from threading import Thread
+
 from sqlalchemy import tuple_
 from sqlalchemy.exc import DBAPIError, SQLAlchemyError
 from sqlalchemy.orm import sessionmaker
-from threading import Thread
+
 from . import Eraser, Finder, Macro, Mover, Porter, Wiper
 from .declaratives import Batch, File
 from .defaults import Defaults

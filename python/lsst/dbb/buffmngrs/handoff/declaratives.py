@@ -20,7 +20,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """Definitions of object-relational mappings.
 """
-
 from sqlalchemy import (
     BigInteger,
     Column,

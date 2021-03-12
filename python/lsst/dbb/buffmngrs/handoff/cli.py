@@ -20,12 +20,13 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """Definitions of commands recognized by the handoff buffer manager.
 """
+import logging
 
 import click
 import jsonschema
-import logging
 import yaml
 from sqlalchemy.exc import DBAPIError, SQLAlchemyError
+
 from .declaratives import Base
 from .manager import Manager
 from .utils import setup_db_conn, setup_logging
