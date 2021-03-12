@@ -166,11 +166,11 @@ class Porter(Command):
                 cmd = tpl.format(**self.params, command=f"mkdir -p {dest}")
                 start = datetime.datetime.now()
                 status, _, stderr, dur = execute(cmd, timeout=self.timeout)
-                for item in transfers:
-                    item.pre_start = start.timestamp()
-                    item.pre_duration = dur.total_seconds()
-                    item.status = status
-                    item.error = stderr
+                for transfer in transfers:
+                    transfer.pre_start = start.timestamp()
+                    transfer.pre_duration = dur.total_seconds()
+                    transfer.status = status
+                    transfer.error = stderr
                 if status != 0:
                     self._flush(transfers)
                     msg = f"Command '{cmd}' failed with error: '{stderr}'"
@@ -230,11 +230,11 @@ class Porter(Command):
                 start = datetime.datetime.now()
                 status, _, stderr, dur = execute(cmd, timeout=self.timeout)
                 total += dur
-                for item in transfers:
-                    item.post_start = start.timestamp()
-                    item.post_duration = total
-                    item.status = status
-                    item.error = stderr
+                for transfer in transfers:
+                    transfer.post_start = start.timestamp()
+                    transfer.post_duration = total
+                    transfer.status = status
+                    transfer.error = stderr
 
                 if status != 0:
                     self._flush(transfers)
