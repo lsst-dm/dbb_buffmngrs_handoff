@@ -74,7 +74,7 @@ class Batch(Base):
     id = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True)
     pre_start_time = Column(DateTime, nullable=False)
     pre_duration = Column(Interval, nullable=False)
-    trans_start_time = Column(DateTime, nullable=False)
+    trans_start_time = Column(DateTime, nullable=True)
     trans_duration = Column(Interval, nullable=True)
     post_start_time = Column(DateTime, nullable=True)
     post_duration = Column(Interval, nullable=True)
