@@ -149,8 +149,8 @@ class Porter(Command):
                 batches = [filenames[i:i+batch_size]
                            for i in range(0, len(filenames), batch_size)]
 
-                # Create corresponding number of transfer items to put in the
-                # output queue.
+                # Create corresponding number of transfer messages to put in
+                # the output queue.
                 transfers = [TransferMsg() for _ in batches]
                 for batch, transfer in zip(batches, transfers):
                     transfer.files = tuple((head, tail, fn) for fn in batch)
@@ -161,7 +161,9 @@ class Porter(Command):
                 dest = os.path.join(stage, tail)
                 relocated = []
 
-                # Create a relevant subdirectory in the staging area.
+                # Create a relevant subdirectory in the staging area and
+                # record time metrics, exit status, and possible error in each
+                # transfer message.
                 tpl = self.cmds["remote"]
                 cmd = tpl.format(**self.params, command=f"mkdir -p {dest}")
                 start = datetime.datetime.now()
