@@ -263,7 +263,7 @@ class Porter(Command):
 
                     completed.append(transfer)
 
-                self._flush([transfer for transfer in completed])
+                self._flush(completed)
 
     def _flush(self, items):
         """Enqueue messages in the output queue.
