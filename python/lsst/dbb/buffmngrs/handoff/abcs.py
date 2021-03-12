@@ -20,8 +20,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """Command's interface definitions.
 """
-
 import abc
+
 
 __all__ = ["Command", "Macro"]
 
@@ -37,7 +37,6 @@ class Command(abc.ABC):
     def run(self):
         """Execute the command.
         """
-        pass
 
 
 class Macro(Command):

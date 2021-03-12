@@ -21,6 +21,7 @@
 """A schema for validating configuration files.
 """
 
+
 __all__ = ["SCHEMA"]
 
 

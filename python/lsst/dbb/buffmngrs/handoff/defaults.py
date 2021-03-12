@@ -20,7 +20,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """Default settings for general options.
 """
-
 from dataclasses import dataclass
 
 

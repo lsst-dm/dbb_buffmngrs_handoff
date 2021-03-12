@@ -149,8 +149,8 @@ class Porter(Command):
                 batches = [filenames[i:i+batch_size]
                            for i in range(0, len(filenames), batch_size)]
 
-                # Create corresponding number of transfer items to put in the
-                # output queue.
+                # Create corresponding number of transfer messages to put in
+                # the output queue.
                 transfers = [TransferMsg() for _ in batches]
                 for batch, transfer in zip(batches, transfers):
                     transfer.files = tuple((head, tail, fn) for fn in batch)
@@ -161,16 +161,18 @@ class Porter(Command):
                 dest = os.path.join(stage, tail)
                 relocated = []
 
-                # Create a relevant subdirectory in the staging area.
+                # Create a relevant subdirectory in the staging area and
+                # record time metrics, exit status, and possible error in each
+                # transfer message.
                 tpl = self.cmds["remote"]
                 cmd = tpl.format(**self.params, command=f"mkdir -p {dest}")
                 start = datetime.datetime.now()
                 status, _, stderr, dur = execute(cmd, timeout=self.timeout)
-                for item in transfers:
-                    item.pre_start = start.timestamp()
-                    item.pre_duration = dur.total_seconds()
-                    item.status = status
-                    item.error = stderr
+                for transfer in transfers:
+                    transfer.pre_start = start.timestamp()
+                    transfer.pre_duration = dur.total_seconds()
+                    transfer.status = status
+                    transfer.error = stderr
                 if status != 0:
                     self._flush(transfers)
                     msg = f"Command '{cmd}' failed with error: '{stderr}'"
@@ -230,11 +232,11 @@ class Porter(Command):
                 start = datetime.datetime.now()
                 status, _, stderr, dur = execute(cmd, timeout=self.timeout)
                 total += dur
-                for item in transfers:
-                    item.post_start = start.timestamp()
-                    item.post_duration = total
-                    item.status = status
-                    item.error = stderr
+                for transfer in transfers:
+                    transfer.post_start = start.timestamp()
+                    transfer.post_duration = total
+                    transfer.status = status
+                    transfer.error = stderr
 
                 if status != 0:
                     self._flush(transfers)
@@ -263,7 +265,7 @@ class Porter(Command):
 
                     completed.append(transfer)
 
-                self._flush([transfer for transfer in completed])
+                self._flush(completed)
 
     def _flush(self, items):
         """Enqueue messages in the output queue.

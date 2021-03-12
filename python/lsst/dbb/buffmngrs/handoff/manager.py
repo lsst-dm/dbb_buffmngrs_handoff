@@ -20,17 +20,18 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """DBB handoff manager.
 """
-
 import logging
 import os
 import queue
 import time
 from dataclasses import asdict
 from datetime import datetime, timedelta
+from threading import Thread
+
 from sqlalchemy import tuple_
 from sqlalchemy.exc import DBAPIError, SQLAlchemyError
 from sqlalchemy.orm import sessionmaker
-from threading import Thread
+
 from . import Eraser, Finder, Macro, Mover, Porter, Wiper
 from .declaratives import Batch, File
 from .defaults import Defaults
@@ -264,18 +265,7 @@ class Manager:
                     continue
 
                 # Create an entry for a given transfer batch.
-                batch = Batch(
-                    pre_start_time=datetime.fromtimestamp(item.pre_start),
-                    pre_duration=timedelta(seconds=item.pre_duration),
-                    trans_start_time=datetime.fromtimestamp(item.pre_start),
-                    trans_duration=timedelta(seconds=item.pre_duration),
-                    post_start_time=datetime.fromtimestamp(item.pre_start),
-                    post_duration=timedelta(seconds=item.pre_duration),
-                    size_bytes=item.size,
-                    rate_mbytes_per_sec=item.rate,
-                    status=item.status,
-                    err_msg=item.error
-                )
+                batch = self._make_batch(item)
                 batch.files.extend(records)
                 batches.append(batch)
 
@@ -323,3 +313,50 @@ class Manager:
             except (DBAPIError, SQLAlchemyError) as ex:
                 msg = f"updating files' held times failed: {ex}"
                 logger.error(msg)
+
+    @staticmethod
+    def _make_batch(msg):
+        """Create a database record describing a transfer batch.
+
+        Parameters
+        ----------
+        msg : `TransferMsg`
+            A message with information about the transfer batch.
+
+        Returns
+        -------
+        `batch` : `Batch`
+            A SQLAlchemy declarative representing the transfer batch.
+        """
+        fields = {
+            "pre_start_time": None,
+            "pre_duration": None,
+            "trans_start_time": None,
+            "trans_duration": None,
+            "post_start_time": None,
+            "post_duration": None,
+            "size_bytes": msg.size,
+            "rate_mbytes_per_sec": msg.rate,
+            "status": msg.status,
+            "err_msg": None,
+        }
+
+        start, duration = msg.pre_start, msg.pre_duration
+        if start is not None:
+            fields["pre_start_time"] = datetime.fromtimestamp(start)
+            fields["pre_duration"] = timedelta(seconds=duration)
+
+        start, duration = msg.trans_start, msg.trans_duration
+        if start is not None:
+            fields["trans_start_time"] = datetime.fromtimestamp(start)
+            fields["trans_duration"] = timedelta(seconds=duration)
+
+        start, duration = msg.post_start, msg.post_duration
+        if start is not None:
+            fields["post_start_time"] = datetime.fromtimestamp(start)
+            fields["post_duration"] = timedelta(seconds=duration)
+
+        if msg.error is not None:
+            fields["err_msg"] = msg.error.strip()
+
+        return Batch(**fields)
