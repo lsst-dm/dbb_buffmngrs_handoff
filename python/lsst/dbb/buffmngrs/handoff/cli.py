@@ -42,23 +42,12 @@ def cli():
 
 
 @cli.command()
-@click.option("--validate/--no-validate", default=False,
-              help="Validate configuration before starting the service.")
 @click.argument("filename", type=click.Path(exists=True))
-def initdb(filename, validate):
+def initdb(filename):
     """Create database tables required by the manager.
     """
     with open(filename) as f:
         configuration = yaml.safe_load(f)
-    if validate:
-        schema = yaml.safe_load(SCHEMA)
-        try:
-            jsonschema.validate(instance=configuration, schema=schema)
-        except jsonschema.ValidationError as ex:
-            raise ValueError(f"configuration error: {ex}.")
-        except jsonschema.SchemaError as ex:
-            raise ValueError(f"schema error: {ex}.")
-        return
 
     config = configuration.get("logging", None)
     setup_logging(options=config)
@@ -74,23 +63,12 @@ def initdb(filename, validate):
 
 
 @cli.command()
-@click.option("--validate/--no-validate", default=False,
-              help="Validate configuration before starting the service.")
 @click.argument("filename", type=click.Path(exists=True))
-def dropdb(filename, validate):
-    """Remove existing database tables.
+def dropdb(filename):
+    """Remove existing database tables using the configuration in FILENAME.
     """
     with open(filename) as f:
         configuration = yaml.safe_load(f)
-    if validate:
-        schema = yaml.safe_load(SCHEMA)
-        try:
-            jsonschema.validate(instance=configuration, schema=schema)
-        except jsonschema.ValidationError as ex:
-            raise ValueError(f"configuration error: {ex}.")
-        except jsonschema.SchemaError as ex:
-            raise ValueError(f"schema error: {ex}.")
-        return
 
     config = configuration.get("logging", None)
     setup_logging(options=config)
@@ -106,27 +84,34 @@ def dropdb(filename, validate):
 
 
 @cli.command()
-@click.option("--validate/--no-validate", default=False,
-              help="Validate configuration before starting the service.")
 @click.argument("filename", type=click.Path(exists=True))
-def run(filename, validate):
+def run(filename):
+    """Start the manager using the configuration in FILENAME.
+    """
     with open(filename) as f:
         configuration = yaml.safe_load(f)
-    if validate:
-        schema = yaml.safe_load(SCHEMA)
-        try:
-            jsonschema.validate(instance=configuration, schema=schema)
-        except jsonschema.ValidationError as ex:
-            raise ValueError(f"configuration error: {ex}.")
-        except jsonschema.SchemaError as ex:
-            raise ValueError(f"schema error: {ex}.")
-        return
 
     config = configuration.get("logging", None)
     setup_logging(options=config)
 
     mgr = Manager(configuration)
     mgr.run()
+
+
+@cli.command()
+@click.argument("filename", type=click.Path(exists=True))
+def validate(filename):
+    """Validate the configuration in FILENAME.
+    """
+    with open(filename) as f:
+        configuration = yaml.safe_load(f)
+    schema = yaml.safe_load(SCHEMA)
+    try:
+        jsonschema.validate(instance=configuration, schema=schema)
+    except jsonschema.ValidationError as ex:
+        raise ValueError(f"configuration error: {ex}.")
+    except jsonschema.SchemaError as ex:
+        raise ValueError(f"schema error: {ex}.")
 
 
 def main():
