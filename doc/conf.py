@@ -2,12 +2,11 @@
 
 This configuration only affects single-package Sphinx documentation builds.
 """
-
-from documenteer.sphinxconfig.stackconf import build_package_configs
-import lsst.dbb.buffmngrs.handoff
+from documenteer.conf.pipelinespkg import *
 
 
-_g = globals()
-_g.update(build_package_configs(
-    project_name='dbb_buffmngrs_handoff',
-    version=lsst.dbb.buffmngrs.handoff.version.__version__))
+project = "dbb_buffmngrs_handoff"
+html_theme_options["logotext"] = project
+html_title = project
+html_short_title = project
+
