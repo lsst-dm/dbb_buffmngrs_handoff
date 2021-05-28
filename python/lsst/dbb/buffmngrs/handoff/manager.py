@@ -145,7 +145,8 @@ class Manager:
             logger.info(f"Transferring files.")
             start = time.time()
             threads = []
-            for _ in range(self.num_threads):
+            num_threads = min(self.num_threads, self.pending.qsize())
+            for _ in range(num_threads):
                 t = Thread(target=self.porter.run)
                 t.start()
                 threads.append(t)
