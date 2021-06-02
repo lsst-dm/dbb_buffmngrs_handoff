@@ -142,7 +142,7 @@ class Manager:
             # transfer items which it uses to populate the transfer queue.
             # The transfer queue contains both successful and failed
             # transfer attempts.
-            logger.info(f"Transferring files.")
+            logger.info("Transferring files.")
             start = time.time()
             threads = []
             num_threads = min(self.num_threads, self.pending.qsize())
@@ -229,6 +229,7 @@ class Manager:
                 try:
                     self.session.commit()
                 except (DBAPIError, SQLAlchemyError) as ex:
+                    logger.error(f"adding new files failed: {ex}")
                     self.session.rollback()
                 else:
                     tracked.extend(untracked)
@@ -262,10 +263,9 @@ class Manager:
                         filter(tuple_(File.relpath, File.filename).
                                in_([(p, n) for _, p, n in item.files])).all()
                 except (DBAPIError, SQLAlchemyError) as ex:
+                    logger.error(f"retrieving records of files in a batch "
+                                 f"failed: {ex}")
                     self.session.rollback()
-                    msg = f"retrieving database records of files in a batch " \
-                          f"failed: {ex}"
-                    logger.error(msg)
                 if not records:
                     continue
 
@@ -286,9 +286,8 @@ class Manager:
                 try:
                     self.session.commit()
                 except (DBAPIError, SQLAlchemyError) as ex:
+                    logger.error(f"adding new transfer batches failed: {ex}")
                     self.session.rollback()
-                    msg = f"adding new transfer batches failed: {ex}"
-                    logger.error(msg)
                 else:
                     for item in transferred:
                         files.put(item)
@@ -314,9 +313,9 @@ class Manager:
                         filter(File.relpath == tail, File.filename == name).\
                         first()
                 except (DBAPIError, SQLAlchemyError) as ex:
+                    logger.error(f"retrieving file record from database "
+                                 f"failed: {ex}")
                     self.session.rollback()
-                    msg = f"retrieving file record from database failed: {ex}"
-                    logger.error(msg)
                 else:
                     if rec is not None:
                         rec.held_on = datetime.fromtimestamp(item.timestamp)
@@ -327,9 +326,8 @@ class Manager:
                 try:
                     self.session.commit()
                 except (DBAPIError, SQLAlchemyError) as ex:
+                    logger.error(f"updating files' held times failed: {ex}")
                     self.session.rollback()
-                    msg = f"updating files' held times failed: {ex}"
-                    logger.error(msg)
 
     @staticmethod
     def _make_batch(msg):

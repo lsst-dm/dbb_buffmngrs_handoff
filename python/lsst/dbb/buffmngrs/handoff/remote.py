@@ -175,8 +175,7 @@ class Porter(Command):
                     transfer.error = stderr
                 if status != 0:
                     self._flush(transfers)
-                    msg = f"Command '{cmd}' failed with error: '{stderr}'"
-                    logger.warning(msg)
+                    logger.warning(f"'{cmd}' failed with error: '{stderr}'")
                     continue
 
                 # 2. TRANSFER
@@ -195,8 +194,7 @@ class Porter(Command):
 
                     if status != 0:
                         self._flush([transfer])
-                        msg = f"command '{cmd}' failed with error: '{stderr}'"
-                        logger.warning(msg)
+                        logger.warning(f"'{cmd}' failed with error: '{stderr}'")
                         continue
 
                     # If transfer successfully, calculate transfer rate.
@@ -237,11 +235,9 @@ class Porter(Command):
                     transfer.post_duration = total
                     transfer.status = status
                     transfer.error = stderr
-
                 if status != 0:
                     self._flush(transfers)
-                    msg = f"Command '{cmd}' failed with error: '{stderr}'"
-                    logger.warning(msg)
+                    logger.warning(f"'{cmd}' failed with error: '{stderr}'")
                     continue
 
                 # Move files from the staging area to the buffer.
@@ -259,8 +255,7 @@ class Porter(Command):
 
                     if status != 0:
                         self._flush([transfer])
-                        msg = f"Command '{cmd}' failed with error: '{stderr}'"
-                        logger.warning(msg)
+                        logger.warning(f"'{cmd}' failed with error: '{stderr}'")
                         continue
 
                     completed.append(transfer)
@@ -324,8 +319,7 @@ class Wiper(Command):
         cmd = tpl.format(**self.params, **args)
         status, _, stderr, _ = execute(cmd, timeout=self.time)
         if status != 0:
-            msg = f"Command '{cmd}' failed with error: '{stderr}'"
-            logger.warning(msg)
+            logger.warning(f"Command '{cmd}' failed with error: '{stderr}'")
 
 
 def execute(cmd, timeout=None):
