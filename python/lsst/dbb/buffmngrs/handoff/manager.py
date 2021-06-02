@@ -142,10 +142,11 @@ class Manager:
             # transfer items which it uses to populate the transfer queue.
             # The transfer queue contains both successful and failed
             # transfer attempts.
-            logger.info(f"Transferring files.")
+            logger.info("Transferring files.")
             start = time.time()
             threads = []
-            for _ in range(self.num_threads):
+            num_threads = min(self.num_threads, self.pending.qsize())
+            for _ in range(num_threads):
                 t = Thread(target=self.porter.run)
                 t.start()
                 threads.append(t)
@@ -189,50 +190,54 @@ class Manager:
         Parameters
         ----------
         inp : queue.Queue
-            Input queue with file items that need to be added to the database.
+            Input queue with file items representing files found in the buffer.
         out : queue.Queue
-            Output queue for file items which were succesfully added to the
-            database.
+            Output queue for file items representing tracked files.
         chunk_size : `int`, optional
             Number of items to grab from the queue, defaults to 10.
         """
         while not inp.empty():
             items = get_chunk(inp, size=chunk_size)
 
-            files = []
+            tracked, untracked = [], []
             for item in items:
                 path = os.path.join(item.head, item.tail, item.name)
-                cksm = get_checksum(path)
+                checksum = get_checksum(path)
+                try:
+                    file_ = self.session.query(File).\
+                        filter(File.relpath == item.tail,
+                               File.filename == item.name,
+                               File.checksum == checksum).first()
+                except (DBAPIError, SQLAlchemyError) as ex:
+                    logger.error(f"checking if file is tracked failed: {ex}")
+                    self.session.rollback()
+                else:
+                    if file_ is not None:
+                        tracked.append(item)
+                    else:
+                        untracked.append(item)
+                        file_ = File(
+                            relpath=item.tail,
+                            filename=item.name,
+                            checksum=checksum,
+                            size_bytes=item.size,
+                            created_on=datetime.fromtimestamp(item.timestamp)
+                        )
+                        self.session.add(file_)
 
-                # Skip already existing database entries.
-                file_ = self.session.query(File).\
-                    filter(File.relpath == item.tail,
-                           File.filename == item.name,
-                           File.checksum == cksm).first()
-                if file_ is not None:
-                    continue
+            if untracked:
+                try:
+                    self.session.commit()
+                except (DBAPIError, SQLAlchemyError) as ex:
+                    logger.error(f"adding new files failed: {ex}")
+                    self.session.rollback()
+                else:
+                    tracked.extend(untracked)
+                    untracked.clear()
 
-                file_ = File(
-                    relpath=item.tail,
-                    filename=item.name,
-                    checksum=cksm,
-                    size_bytes=item.size,
-                    created_on=datetime.fromtimestamp(item.timestamp)
-                )
-                files.append(file_)
-
-            # Try to commit changes to the database.  If the commit was
-            # successful, populate the output queue with files that need to
-            # be transferred.
-            self.session.add_all(files)
-            try:
-                self.session.commit()
-            except (DBAPIError, SQLAlchemyError) as ex:
-                msg = f"adding new files failed: {ex}"
-                logger.error(msg)
-            else:
-                for item in items:
-                    out.put(item)
+            # Populate the output queue with files that need to be transferred.
+            for item in tracked:
+                out.put(item)
 
     def _add_transfers(self, transfers, files, chunk_size=10):
         """Create database entries for completed transfer batches.
@@ -258,9 +263,9 @@ class Manager:
                         filter(tuple_(File.relpath, File.filename).
                                in_([(p, n) for _, p, n in item.files])).all()
                 except (DBAPIError, SQLAlchemyError) as ex:
-                    msg = f"retrieving database records of files in a batch " \
-                          f"failed: {ex}"
-                    logger.error(msg)
+                    logger.error(f"retrieving records of files in a batch "
+                                 f"failed: {ex}")
+                    self.session.rollback()
                 if not records:
                     continue
 
@@ -276,18 +281,16 @@ class Manager:
                         item = FileMsg(head=head, tail=tail, name=name)
                         transferred.append(item)
 
-            # Try to commit changes to the database.  If the commit was
-            # successful, populate the output queue with files that were
-            # successfully transferred.
-            self.session.add_all(batches)
-            try:
-                self.session.commit()
-            except (DBAPIError, SQLAlchemyError) as ex:
-                msg = f"adding new transfer batches failed: {ex}"
-                logger.error(msg)
-            else:
-                for item in transferred:
-                    files.put(item)
+            if batches:
+                self.session.add_all(batches)
+                try:
+                    self.session.commit()
+                except (DBAPIError, SQLAlchemyError) as ex:
+                    logger.error(f"adding new transfer batches failed: {ex}")
+                    self.session.rollback()
+                else:
+                    for item in transferred:
+                        files.put(item)
 
     def _update_files(self, inp, chunk_size=10):
         """Add move time to file database entries.
@@ -301,18 +304,30 @@ class Manager:
         """
         while not inp.empty():
             items = get_chunk(inp, size=chunk_size)
+
+            records = []
             for item in items:
                 tail, name = item.tail, item.name
-                rec = self.session.query(File).\
-                    filter(File.relpath == tail, File.filename == name).\
-                    first()
-                if rec is not None:
-                    rec.held_on = datetime.fromtimestamp(item.timestamp)
-            try:
-                self.session.commit()
-            except (DBAPIError, SQLAlchemyError) as ex:
-                msg = f"updating files' held times failed: {ex}"
-                logger.error(msg)
+                try:
+                    rec = self.session.query(File).\
+                        filter(File.relpath == tail, File.filename == name).\
+                        first()
+                except (DBAPIError, SQLAlchemyError) as ex:
+                    logger.error(f"retrieving file record from database "
+                                 f"failed: {ex}")
+                    self.session.rollback()
+                else:
+                    if rec is not None:
+                        rec.held_on = datetime.fromtimestamp(item.timestamp)
+                        records.append(rec)
+
+            if records:
+                self.session.add_all(records)
+                try:
+                    self.session.commit()
+                except (DBAPIError, SQLAlchemyError) as ex:
+                    logger.error(f"updating files' held times failed: {ex}")
+                    self.session.rollback()
 
     @staticmethod
     def _make_batch(msg):
