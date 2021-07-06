@@ -27,6 +27,7 @@ import time
 from datetime import datetime
 from .abcs import Command
 from .messages import FileMsg
+import re
 
 
 __all__ = ["Finder", "Eraser", "Mover"]
@@ -37,14 +38,12 @@ logger = logging.getLogger(__name__)
 
 class Finder(Command):
     """Command finding out all files in the buffer on the handoff site.
-
     Parameters
     ----------
     config : dict
         Configuration of the handoff site.
     queue : queue.Queue
         Container where the files found in the given directory will be stored.
-
     Raises
     ------
     ValueError
@@ -64,11 +63,22 @@ class Finder(Command):
     def run(self):
         """Scan recursively the directory to find all files it contains.
         """
+        
+        exclude_list = [".temp"]
+        
         for topdir, _, filenames in os.walk(self.root):
             for name in filenames:
                 path = os.path.join(topdir, name)
                 tail = os.path.relpath(path, start=self.root)
                 dirname, basename = os.path.split(tail)
+                
+                matches = [f"'{patt}'" for patt in exclude_list                     # <--  This is a list called "matches" which picks out each pattern (called "patt") in "exclude_list" 
+                       if re.search(patt, tail) is not None]
+                if matches:                                                         # <--  Here, if the "matches" list isn't empty, "logger.debug" runs which prints as a message the
+                    logger.debug("%s was excluded by pattern(s): "                  #      name of the path (with filename appended) that was skipped
+                                 "%s", path, ', '.join(matches))
+                    continue                 
+                
                 try:
                     status = os.stat(path)
                 except FileNotFoundError as ex:
@@ -85,7 +95,6 @@ class Finder(Command):
 
 class Mover(Command):
     """Command moving files between the buffer and the holding area.
-
     Parameters
     ----------
     config : dict
@@ -94,7 +103,6 @@ class Mover(Command):
         Input message queue with files to move.
     out : queue.Queue
         Output message queue with files that were moved.
-
     Raises
     ------
     ValueError
@@ -138,11 +146,9 @@ class Mover(Command):
 
 class Eraser(Command):
     """Command removing empty directories from the buffer.
-
     To avoid possible race condition between the application writing files to
     the buffer and the command itself, empty directories are removed only if
     they were not modified for a certain period of time.
-
     Parameters
     ----------
     config : dict
@@ -150,7 +156,6 @@ class Eraser(Command):
     exp_time : int
         Time (in seconds) that need to pass from the last modification before
         an empty directory can be removed.
-
     Raises
     ------
     ValueError
@@ -194,3 +199,4 @@ class Eraser(Command):
                     logger.warning(f"Cannot remove '{path}': {ex}")
                 else:
                     logger.debug(f"Directory '{path}' removed successfully.")
+                    
