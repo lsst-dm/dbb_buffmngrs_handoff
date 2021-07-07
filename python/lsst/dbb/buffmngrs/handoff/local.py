@@ -200,5 +200,4 @@ class Eraser(Command):
                 else:
                     logger.debug(f"Directory '{path}' removed successfully.")
                     
-                    
-#### TEST CHANGE ####
+                
