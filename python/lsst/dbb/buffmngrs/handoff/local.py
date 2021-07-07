@@ -59,12 +59,14 @@ class Finder(Command):
             raise ValueError(f"{path}: directory not found.")
         self.root = path
         self.queue = queue
+        self.exclude_list = config.get("exclude_list")
+        if self.exclude_list is None:
+            self.exclude_list = []
 
     def run(self):
         """Scan recursively the directory to find all files it contains.
         """
         
-        exclude_list = [".temp"]
         
         for topdir, _, filenames in os.walk(self.root):
             for name in filenames:
@@ -72,7 +74,7 @@ class Finder(Command):
                 tail = os.path.relpath(path, start=self.root)
                 dirname, basename = os.path.split(tail)
                 
-                matches = [f"'{patt}'" for patt in exclude_list                     # <--  This is a list called "matches" which picks out each pattern (called "patt") in "exclude_list" 
+                matches = [f"'{patt}'" for patt in self.exclude_list                     # <--  This is a list called "matches" which picks out each pattern (called "patt") in "exclude_list" 
                        if re.search(patt, tail) is not None]
                 if matches:                                                         # <--  Here, if the "matches" list isn't empty, "logger.debug" runs which prints as a message the
                     logger.debug("%s was excluded by pattern(s): "                  #      name of the path (with filename appended) that was skipped
