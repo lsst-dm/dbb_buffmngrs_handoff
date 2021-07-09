@@ -1,18 +1,18 @@
 database:
-  engine: "sqlite:////path/to/sqlite.db"
+  engine: "sqlite:////home/brendal4/Documents/LSST/DBB_dev/sqlite.db"
   echo: false
   pool_type: QueuePool
 handoff:
-  buffer: /data/buffer
-  holding: /data/holding
+  buffer: /home/brendal4/Documents/LSST/handoff_manager/buffer
+  holding: /home/brendal4/Documents/LSST/handoff_manager/holding
 endpoint:
-  user: jdoe
-  host: example.edu
-  buffer: /data/buffer
-  staging: /data/staging
+  user: brendal4
+  host: lsst-login03.ncsa.illinois.edu
+  buffer: /home/brendal4/data/endpoint/buffer
+  staging: /home/brendal4/data/endpoint/staging
   commands:
     remote: "ssh {user}@{host} \"{command}\""
-    transfer: "bbcp {file} {user}@{host}:{dest}"
+    transfer: "scp -Bq {file} {user}@{host}:{dest}"
 logging:
   format: "%(asctime)s:%(name)s:%(levelname)s:%(message)s"
   file: null
@@ -23,3 +23,5 @@ general:
   num_threads: 1
   expiration_time: 86400
   pause: 1
+  exclude_list:
+     # - '\.temp'

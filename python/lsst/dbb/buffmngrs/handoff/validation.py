@@ -95,7 +95,21 @@ SCHEMA = {
                 "pause": {
                     "type": "integer",
                     "minimum": 1
-                }
+                },
+                "exclude_list": {
+    		    "anyOf": [
+			{
+			    "type": "array",
+			    "items": {
+				"type": "string",
+				"uniqueItems": True
+			    }
+			},
+			{
+			    "type": "null"
+			}
+		    ]
+		}
             }
         }
     },

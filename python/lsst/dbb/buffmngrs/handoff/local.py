@@ -20,10 +20,12 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """Definitions of command that need to be executed on the handoff site.
 """
+import re
 import logging
 import os
 import shutil
 import time
+
 from datetime import datetime
 from .abcs import Command
 from .messages import FileMsg
@@ -51,7 +53,7 @@ class Finder(Command):
         If buffer is not specified, does not exists, or is not a directory.
     """
 
-    def __init__(self, config, queue):
+    def __init__(self, config, queue, exclude_list=None):
         try:
             path = config["buffer"]
         except KeyError:
@@ -60,6 +62,9 @@ class Finder(Command):
             raise ValueError(f"{path}: directory not found.")
         self.root = path
         self.queue = queue
+        self.exclude_list = exclude_list
+        if self.exclude_list is None:
+            self.exclude_list = []
 
     def run(self):
         """Scan recursively the directory to find all files it contains.
@@ -69,6 +74,12 @@ class Finder(Command):
                 path = os.path.join(topdir, name)
                 tail = os.path.relpath(path, start=self.root)
                 dirname, basename = os.path.split(tail)
+                matches = [f"'{patt}'" for patt in self.exclude_list
+                           if re.search(patt, tail) is not None]
+                if matches:
+                    logger.debug("%s was excluded by pattern(s): "
+                                 "%s", path, ', '.join(matches))
+                    continue                 
                 try:
                     status = os.stat(path)
                 except FileNotFoundError as ex:
