@@ -105,9 +105,8 @@ def validate(filename):
     """
     with open(filename) as f:
         configuration = yaml.safe_load(f)
-    schema = yaml.safe_load(SCHEMA)
     try:
-        jsonschema.validate(instance=configuration, schema=schema)
+        jsonschema.validate(instance=configuration, schema=SCHEMA)
     except jsonschema.ValidationError as ex:
         raise ValueError(f"configuration error: {ex}.")
     except jsonschema.SchemaError as ex:
