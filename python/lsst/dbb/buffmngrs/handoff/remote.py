@@ -175,7 +175,7 @@ class Porter(Command):
                     transfer.error = stderr
                 if status != 0:
                     self._flush(transfers)
-                    logger.warning(f"'{cmd}' failed with error: '{stderr}'")
+                    logger.warning("'%s' failed with error: '%s'", cmd, stderr)
                     continue
 
                 # 2. TRANSFER
@@ -194,7 +194,8 @@ class Porter(Command):
 
                     if status != 0:
                         self._flush([transfer])
-                        logger.warning(f"'{cmd}' failed with error: '{stderr}'")
+                        logger.warning("'%s' failed with error: '%s'",
+                                       cmd, stderr)
                         continue
 
                     # If transfer successfully, calculate transfer rate.
@@ -237,7 +238,7 @@ class Porter(Command):
                     transfer.error = stderr
                 if status != 0:
                     self._flush(transfers)
-                    logger.warning(f"'{cmd}' failed with error: '{stderr}'")
+                    logger.warning("'%s' failed with error: '%s'", cmd, stderr)
                     continue
 
                 # Move files from the staging area to the buffer.
@@ -255,7 +256,8 @@ class Porter(Command):
 
                     if status != 0:
                         self._flush([transfer])
-                        logger.warning(f"'{cmd}' failed with error: '{stderr}'")
+                        logger.warning("'%s' failed with error: '%s'", 
+                                       cmd, stderr)
                         continue
 
                     completed.append(transfer)
@@ -319,7 +321,7 @@ class Wiper(Command):
         cmd = tpl.format(**self.params, **args)
         status, _, stderr, _ = execute(cmd, timeout=self.time)
         if status != 0:
-            logger.warning(f"Command '{cmd}' failed with error: '{stderr}'")
+            logger.warning("Command '%s' failed with error: '%s'", cmd, stderr)
 
 
 def execute(cmd, timeout=None):
@@ -339,7 +341,7 @@ def execute(cmd, timeout=None):
     (int, str, str, datetime.timedelta)
         Shell command exit status, stdout, stderr, and duration.
     """
-    logger.debug(f"Executing {cmd}.")
+    logger.debug("Executing %s.", cmd)
 
     start = datetime.datetime.now()
     args = shlex.split(cmd)
@@ -358,6 +360,6 @@ def execute(cmd, timeout=None):
     end = datetime.datetime.now()
     duration = end - start
 
-    logger.debug(f"Execution completed in {duration.total_seconds()}: "
-                 f"(status: {status}, output: '{stdout}', error: '{stderr}').")
+    logger.debug("Execution completed in %i: (status: %s, output: '%s', error:"
+                 " '%s').", duration.total_seconds(), status, stdout, stderr)
     return status, stdout, stderr, duration
