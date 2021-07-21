@@ -117,13 +117,13 @@ class Manager:
             self.finder.run()
             end = time.time()
             duration = end - start
-            logger.info(f"Scan completed in {duration:.2f} sec., "
-                        f"{self.discovered.qsize()} file(s) found.")
+            logger.info("Scan completed in %.2f sec., %i file(s) found."
+                        % (duration, self.discovered.qsize()))
 
             # Go to slumber for a given time interval before starting next
             # scan, if no files were found.
             if self.discovered.qsize() == 0:
-                logger.info(f"Next scan in {self.pause} sec.")
+                logger.info("Next scan in %i sec." % (self.pause))
                 time.sleep(self.pause)
                 continue
 
@@ -156,7 +156,7 @@ class Manager:
             self.wiper.run()
             end = time.time()
             duration = end - start
-            logger.info(f"Transfer attempts completed in {duration:.2f} sec.")
+            logger.info("Transfer attempts completed in %.2f sec." % (duration))
 
             # Create database entries for the transfers made.
             #
@@ -182,7 +182,7 @@ class Manager:
             self._update_files(self.completed)
 
             # Go to slumber for a given time interval.
-            logger.info(f"Next scan in {self.pause} sec.")
+            logger.info("Next scan in %i sec." % (self.pause))
             time.sleep(self.pause)
 
     def _add_files(self, inp, out, chunk_size=10):
@@ -210,7 +210,7 @@ class Manager:
                                File.filename == item.name,
                                File.checksum == checksum).first()
                 except (DBAPIError, SQLAlchemyError) as ex:
-                    logger.error(f"checking if file is tracked failed: {ex}")
+                    logger.error("checking if file is tracked failed: %s" % (ex))
                     self.session.rollback()
                 else:
                     if file_ is not None:
@@ -230,7 +230,7 @@ class Manager:
                 try:
                     self.session.commit()
                 except (DBAPIError, SQLAlchemyError) as ex:
-                    logger.error(f"adding new files failed: {ex}")
+                    logger.error("adding new files failed: %s" % (ex))
                     self.session.rollback()
                 else:
                     tracked.extend(untracked)
@@ -264,8 +264,8 @@ class Manager:
                         filter(tuple_(File.relpath, File.filename).
                                in_([(p, n) for _, p, n in item.files])).all()
                 except (DBAPIError, SQLAlchemyError) as ex:
-                    logger.error(f"retrieving records of files in a batch "
-                                 f"failed: {ex}")
+                    logger.error("retrieving records of files in a batch "
+                                 "failed: %s" % (ex))
                     self.session.rollback()
                 if not records:
                     continue
@@ -287,7 +287,7 @@ class Manager:
                 try:
                     self.session.commit()
                 except (DBAPIError, SQLAlchemyError) as ex:
-                    logger.error(f"adding new transfer batches failed: {ex}")
+                    logger.error("adding new transfer batches failed: %s" % (ex))
                     self.session.rollback()
                 else:
                     for item in transferred:
@@ -314,8 +314,8 @@ class Manager:
                         filter(File.relpath == tail, File.filename == name).\
                         first()
                 except (DBAPIError, SQLAlchemyError) as ex:
-                    logger.error(f"retrieving file record from database "
-                                 f"failed: {ex}")
+                    logger.error("retrieving file record from database "
+                                 "failed: %s" % (ex))
                     self.session.rollback()
                 else:
                     if rec is not None:
@@ -327,7 +327,7 @@ class Manager:
                 try:
                     self.session.commit()
                 except (DBAPIError, SQLAlchemyError) as ex:
-                    logger.error(f"updating files' held times failed: {ex}")
+                    logger.error("updating files' held times failed: %s" % (ex))
                     self.session.rollback()
 
     @staticmethod
