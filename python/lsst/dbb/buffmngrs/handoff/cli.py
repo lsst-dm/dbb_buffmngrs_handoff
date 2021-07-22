@@ -57,7 +57,7 @@ def initdb(filename):
     try:
         Base.metadata.create_all(engine)
     except (DBAPIError, SQLAlchemyError) as ex:
-        msg = f"cannot create tables: {ex}"
+        msg = "cannot create tables: %s" % (ex)
         logger.error(msg)
         raise RuntimeError(msg)
 
@@ -78,7 +78,7 @@ def dropdb(filename):
     try:
         Base.metadata.drop_all(engine)
     except (DBAPIError, SQLAlchemyError) as ex:
-        msg = f"cannot remove tables: {ex}"
+        msg = "cannot remove tables: %s" % (ex)
         logger.error(msg)
         raise RuntimeError(msg)
 

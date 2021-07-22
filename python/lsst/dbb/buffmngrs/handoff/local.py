@@ -74,7 +74,7 @@ class Finder(Command):
                 path = os.path.join(topdir, name)
                 tail = os.path.relpath(path, start=self.root)
                 dirname, basename = os.path.split(tail)
-                matches = [f"'{patt}'" for patt in self.exclude_list
+                matches = ["'%s'" % (patt) for patt in self.exclude_list
                            if re.search(patt, tail) is not None]
                 if matches:
                     logger.debug("%s was excluded by pattern(s): "
@@ -83,7 +83,7 @@ class Finder(Command):
                 try:
                     status = os.stat(path)
                 except FileNotFoundError as ex:
-                    logger.error(f"{ex}")
+                    logger.error("%s" % (ex))
                 else:
                     msg = FileMsg()
                     msg.head = self.root
@@ -120,7 +120,7 @@ class Mover(Command):
             logger.critical(msg)
             raise ValueError(msg)
         if not os.path.isdir(path):
-            msg = f"{path}: directory not found."
+            msg = "%s: directory not found." % (path)
             logger.critical(msg)
             raise ValueError(msg)
         self.root = path
@@ -135,11 +135,11 @@ class Mover(Command):
             os.makedirs(os.path.join(self.root, msg.tail), exist_ok=True)
             src = os.path.join(msg.head, msg.tail, msg.name)
             dst = os.path.join(self.root, msg.tail, msg.name)
-            logger.debug(f"Moving '{src}' to '{dst}'.")
+            logger.debug("Moving '%s' to '%s'." % (src, dst))
             try:
                 shutil.move(src, dst)
             except OSError as ex:
-                logger.warning(f"Cannot move '{src}': {ex}.")
+                logger.warning("Cannot move '%s': %s." % (src, ex))
                 continue
             else:
                 msg.head = self.root
@@ -176,7 +176,7 @@ class Eraser(Command):
             logger.critical(msg)
             raise ValueError(msg)
         if not os.path.isdir(path):
-            msg = f"{path}: directory not found."
+            msg = "%s: directory not found." % (path)
             logger.critical(msg)
             raise ValueError(msg)
         self.root = path
@@ -191,7 +191,7 @@ class Eraser(Command):
                 path = os.path.join(topdir, name)
                 if len(os.listdir(path)) == 0:
                     empty_dirs.append(path)
-        logger.debug(f"Empty directories found: '{empty_dirs}'.")
+        logger.debug("Empty directories found: '%s'." % (empty_dirs))
 
         now = time.time()
         for path in empty_dirs:
@@ -202,6 +202,6 @@ class Eraser(Command):
                 try:
                     os.rmdir(path)
                 except (FileNotFoundError, OSError) as ex:
-                    logger.warning(f"Cannot remove '{path}': {ex}")
+                    logger.warning("Cannot remove '%s': %s" % (path, ex))
                 else:
-                    logger.debug(f"Directory '{path}' removed successfully.")
+                    logger.debug("Directory '%s' removed successfully." % (path))
