@@ -97,19 +97,19 @@ SCHEMA = {
                     "minimum": 1
                 },
                 "exclude_list": {
-    		    "anyOf": [
-			{
-			    "type": "array",
-			    "items": {
-				"type": "string",
-				"uniqueItems": True
-			    }
-			},
-			{
-			    "type": "null"
-			}
-		    ]
-		}
+                    "anyOf": [
+                        {
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                                "uniqueItems": True
+                            }
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                }
             }
         }
     },
