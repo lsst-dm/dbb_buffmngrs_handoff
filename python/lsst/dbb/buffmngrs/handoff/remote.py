@@ -341,7 +341,7 @@ def execute(cmd, timeout=None):
     (int, str, str, datetime.timedelta)
         Shell command exit status, stdout, stderr, and duration.
     """
-    logger.debug("Executing %s." , cmd)
+    logger.debug("Executing %s.", cmd)
 
     start = datetime.datetime.now()
     args = shlex.split(cmd)
