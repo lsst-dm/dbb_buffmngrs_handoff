@@ -256,7 +256,7 @@ class Porter(Command):
 
                     if status != 0:
                         self._flush([transfer])
-                        logger.warning("'%s' failed with error: '%s'", 
+                        logger.warning("'%s' failed with error: '%s'",
                                        cmd, stderr)
                         continue
 

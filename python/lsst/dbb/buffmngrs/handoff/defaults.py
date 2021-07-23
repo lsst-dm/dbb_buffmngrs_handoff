@@ -54,7 +54,7 @@ class Defaults:
     expiration_time: int = 86400
     """Time (in sec.) after an empty directories in the buffer will be removed.
     """
-    
+
     exclude_list: list = None
     """List of regular expressions for filtering out unwanted files.
     """

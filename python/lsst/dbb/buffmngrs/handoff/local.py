@@ -79,11 +79,11 @@ class Finder(Command):
                 if matches:
                     logger.debug("%s was excluded by pattern(s): "
                                  "%s", path, ', '.join(matches))
-                    continue                 
+                    continue
                 try:
                     status = os.stat(path)
                 except FileNotFoundError as ex:
-                    logger.error("%s" , ex)
+                    logger.error("%s", ex)
                 else:
                     msg = FileMsg()
                     msg.head = self.root

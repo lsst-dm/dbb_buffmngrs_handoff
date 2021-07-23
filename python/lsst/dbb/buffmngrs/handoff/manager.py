@@ -87,7 +87,7 @@ class Manager:
 
         # Define tasks related to managing the buffer.
         handoff = configuration["handoff"]
-        self.finder = Finder(handoff, self.discovered, 
+        self.finder = Finder(handoff, self.discovered,
                              exclude_list=settings["exclude_list"])
         mover = Mover(handoff, self.processed, self.completed)
         eraser = Eraser(handoff, exp_time=settings["expiration_time"])
