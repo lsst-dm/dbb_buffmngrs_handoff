@@ -117,13 +117,13 @@ class Manager:
             self.finder.run()
             end = time.time()
             duration = end - start
-            logger.info("Scan completed in %.2f sec., %i file(s) found."
-                        % (duration, self.discovered.qsize()))
+            logger.info("Scan completed in %.2f sec., %i file(s) found.",
+                        duration, self.discovered.qsize())
 
             # Go to slumber for a given time interval before starting next
             # scan, if no files were found.
             if self.discovered.qsize() == 0:
-                logger.info("Next scan in %i sec." % (self.pause))
+                logger.info("Next scan in %i sec.", self.pause)
                 time.sleep(self.pause)
                 continue
 
@@ -156,7 +156,7 @@ class Manager:
             self.wiper.run()
             end = time.time()
             duration = end - start
-            logger.info("Transfer attempts completed in %.2f sec." % (duration))
+            logger.info("Transfer attempts completed in %.2f sec.", duration)
 
             # Create database entries for the transfers made.
             #
@@ -182,7 +182,7 @@ class Manager:
             self._update_files(self.completed)
 
             # Go to slumber for a given time interval.
-            logger.info("Next scan in %i sec." % (self.pause))
+            logger.info("Next scan in %i sec.", self.pause)
             time.sleep(self.pause)
 
     def _add_files(self, inp, out, chunk_size=10):
@@ -210,7 +210,7 @@ class Manager:
                                File.filename == item.name,
                                File.checksum == checksum).first()
                 except (DBAPIError, SQLAlchemyError) as ex:
-                    logger.error("checking if file is tracked failed: %s" % (ex))
+                    logger.error("checking if file is tracked failed: %s", ex)
                     self.session.rollback()
                 else:
                     if file_ is not None:
@@ -230,7 +230,7 @@ class Manager:
                 try:
                     self.session.commit()
                 except (DBAPIError, SQLAlchemyError) as ex:
-                    logger.error("adding new files failed: %s" % (ex))
+                    logger.error("adding new files failed: %s", ex)
                     self.session.rollback()
                 else:
                     tracked.extend(untracked)
@@ -265,7 +265,7 @@ class Manager:
                                in_([(p, n) for _, p, n in item.files])).all()
                 except (DBAPIError, SQLAlchemyError) as ex:
                     logger.error("retrieving records of files in a batch "
-                                 "failed: %s" % (ex))
+                                 "failed: %s", ex)
                     self.session.rollback()
                 if not records:
                     continue
@@ -287,7 +287,7 @@ class Manager:
                 try:
                     self.session.commit()
                 except (DBAPIError, SQLAlchemyError) as ex:
-                    logger.error("adding new transfer batches failed: %s" % (ex))
+                    logger.error("adding new transfer batches failed: %s", ex)
                     self.session.rollback()
                 else:
                     for item in transferred:
@@ -315,7 +315,7 @@ class Manager:
                         first()
                 except (DBAPIError, SQLAlchemyError) as ex:
                     logger.error("retrieving file record from database "
-                                 "failed: %s" % (ex))
+                                 "failed: %s", ex)
                     self.session.rollback()
                 else:
                     if rec is not None:
@@ -327,7 +327,7 @@ class Manager:
                 try:
                     self.session.commit()
                 except (DBAPIError, SQLAlchemyError) as ex:
-                    logger.error("updating files' held times failed: %s" % (ex))
+                    logger.error("updating files' held times failed: %s", ex)
                     self.session.rollback()
 
     @staticmethod

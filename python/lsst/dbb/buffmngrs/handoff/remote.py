@@ -77,8 +77,7 @@ class Porter(Command):
         required = {"user", "host", "buffer", "commands"}
         missing = required - set(config)
         if missing:
-            msg = "Invalid configuration: %s not provided." \
-                  % (', '.join(missing))
+            msg = f"Invalid configuration: {', '.join(missing)} not provided."
             logger.critical(msg)
             raise ValueError(msg)
 
@@ -92,8 +91,8 @@ class Porter(Command):
             remaining = formal - actual
             undefined = remaining - keywords
             if undefined:
-                msg = "parameters %s are used, but not defined in '%s'" \
-                      % (', '.join(undefined), cmd)
+                msg = f"parameters {', '.join(undefined)} are used, " \
+                      f"but not defined in '{cmd}'"
                 logger.error(msg)
                 raise ValueError(msg)
 
@@ -166,7 +165,7 @@ class Porter(Command):
                 # record time metrics, exit status, and possible error in each
                 # transfer message.
                 tpl = self.cmds["remote"]
-                cmd = tpl.format(**self.params, command="mkdir -p %s" % (dest))
+                cmd = tpl.format(**self.params, command=f"mkdir -p {dest}")
                 start = datetime.datetime.now()
                 status, _, stderr, dur = execute(cmd, timeout=self.timeout)
                 for transfer in transfers:
@@ -176,8 +175,7 @@ class Porter(Command):
                     transfer.error = stderr
                 if status != 0:
                     self._flush(transfers)
-                    logger.warning("'%s' failed with error: '%s'" 
-                                   % (cmd, stderr))
+                    logger.warning("'%s' failed with error: '%s'", cmd, stderr)
                     continue
 
                 # 2. TRANSFER
@@ -196,8 +194,8 @@ class Porter(Command):
 
                     if status != 0:
                         self._flush([transfer])
-                        logger.warning("'%s' failed with error: '%s'" 
-                                       % (cmd, stderr))
+                        logger.warning("'%s' failed with error: '%s'",
+                                       cmd, stderr)
                         continue
 
                     # If transfer successfully, calculate transfer rate.
@@ -229,7 +227,7 @@ class Porter(Command):
 
                 # Create a relevant subdirectory in the buffer.
                 tpl = self.cmds["remote"]
-                cmd = tpl.format(**self.params, command="mkdir -p %s" % (dest))
+                cmd = tpl.format(**self.params, command=f"mkdir -p {dest}")
                 start = datetime.datetime.now()
                 status, _, stderr, dur = execute(cmd, timeout=self.timeout)
                 total += dur
@@ -240,8 +238,7 @@ class Porter(Command):
                     transfer.error = stderr
                 if status != 0:
                     self._flush(transfers)
-                    logger.warning("'%s' failed with error: '%s'"
-                                   % (cmd, stderr))
+                    logger.warning("'%s' failed with error: '%s'", cmd, stderr)
                     continue
 
                 # Move files from the staging area to the buffer.
@@ -249,8 +246,7 @@ class Porter(Command):
                 for batch, transfer in zip(batches, transfers):
                     src = " ".join([os.path.join(stage, tail, name)
                                     for name in batch])
-                    cmd = tpl.format(**self.params, command="mv %s %s" 
-                                     % (src, dest))
+                    cmd = tpl.format(**self.params, command=f"mv {src} {dest}")
                     start = datetime.datetime.now()
                     status, _, stderr, dur = execute(cmd, timeout=self.timeout)
                     transfer.post_start = start.timestamp()
@@ -260,8 +256,8 @@ class Porter(Command):
 
                     if status != 0:
                         self._flush([transfer])
-                        logger.warning("'%s' failed with error: '%s'"
-                                       % (cmd, stderr))
+                        logger.warning("'%s' failed with error: '%s'", 
+                                       cmd, stderr)
                         continue
 
                     completed.append(transfer)
@@ -303,8 +299,7 @@ class Wiper(Command):
         required = {"user", "host", "commands"}
         missing = required - set(config)
         if missing:
-            msg = "Invalid configuration: %s not provided." \
-                  % (', '.join(missing))
+            msg = f"Invalid configuration: {', '.join(missing)} not provided."
             logger.critical(msg)
             raise ValueError(msg)
 
@@ -321,13 +316,12 @@ class Wiper(Command):
         if self.stage is None:
             return
         tpl = self.cmds["remote"]
-        args = dict(command="find %s -type d -empty -mindepth 1 -delete"
-                            % (self.stage))
+        args = dict(command=f"find {self.stage} -type d -empty -mindepth 1 "
+                            f"-delete")
         cmd = tpl.format(**self.params, **args)
         status, _, stderr, _ = execute(cmd, timeout=self.time)
         if status != 0:
-            logger.warning("Command '%s' failed with error: '%s'"
-                           % (cmd, stderr))
+            logger.warning("Command '%s' failed with error: '%s'", cmd, stderr)
 
 
 def execute(cmd, timeout=None):
@@ -347,7 +341,7 @@ def execute(cmd, timeout=None):
     (int, str, str, datetime.timedelta)
         Shell command exit status, stdout, stderr, and duration.
     """
-    logger.debug("Executing %s." % (cmd))
+    logger.debug("Executing %s." , cmd)
 
     start = datetime.datetime.now()
     args = shlex.split(cmd)
@@ -366,6 +360,6 @@ def execute(cmd, timeout=None):
     end = datetime.datetime.now()
     duration = end - start
 
-    logger.debug("Execution completed in %i: (status: %s, output: '%s', error: "
-                 "'%s')." % (duration.total_seconds(), status, stdout, stderr))
+    logger.debug("Execution completed in %i: (status: %s, output: '%s', error:"
+                 " '%s').", duration.total_seconds(), status, stdout, stderr)
     return status, stdout, stderr, duration
