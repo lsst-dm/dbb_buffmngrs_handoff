@@ -75,7 +75,8 @@ class PorterTestCase(unittest.TestCase):
     def testRun(self):
         """Test if Porter transfers files between handoff and endpoint sites.
         """
-        config = dict(buffer=self.dst, staging=self.stg, user=self.user, host=self.host)
+        config = dict(buffer=self.dst, staging=self.stg, user=self.user,
+                      host=self.host)
         cmd = Porter(config, self.todo, self.done)
         cmd.run()
 

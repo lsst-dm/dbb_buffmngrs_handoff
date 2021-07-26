@@ -50,7 +50,7 @@ class WiperTestCase(unittest.TestCase):
     def testEmpty(self):
         """Test if Wiper removes empty directory.
         """
-        subdir = tempfile.mkdtemp(dir=self.dir)
+        tempfile.mkdtemp(dir=self.dir)
 
         config = dict(user=self.user, host=self.host, staging=self.dir)
         cmd = Wiper(config)

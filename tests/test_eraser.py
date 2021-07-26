@@ -54,7 +54,7 @@ class EraserTestCase(unittest.TestCase):
     def testNonExpiredDir(self):
         """Test if Eraser does not remove a non-expired directory.
         """
-        subdir = tempfile.mkdtemp(dir=self.dir)
+        tempfile.mkdtemp(dir=self.dir)
 
         config = dict(buffer=self.dir)
         cmd = Eraser(config)
@@ -69,7 +69,7 @@ class EraserTestCase(unittest.TestCase):
     def testExpiredDir(self):
         """Test if Eraser removes an expired directory.
         """
-        subdir = tempfile.mkdtemp(dir=self.dir)
+        tempfile.mkdtemp(dir=self.dir)
         time.sleep(2)
 
         config = dict(buffer=self.dir)
@@ -96,4 +96,3 @@ class EraserTestCase(unittest.TestCase):
             for d in subs:
                 dirs.append(d)
         self.assertEqual(len(dirs), 1)
-
