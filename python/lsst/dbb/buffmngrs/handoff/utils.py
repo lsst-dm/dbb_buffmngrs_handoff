@@ -25,6 +25,7 @@ import importlib
 import logging
 import queue
 import time
+from logging.handlers import TimedRotatingFileHandler, RotatingFileHandler
 
 from sqlalchemy import create_engine
 
@@ -140,7 +141,7 @@ def setup_db_conn(config):
     return engine
 
 
-def setup_logging(options=None):
+def setup_logging(options=None, **kwargs):
     """Configure logger.
 
     Parameters
@@ -161,6 +162,11 @@ def setup_logging(options=None):
         "file": None,
         "format": "%(asctime)s:%(name)s:%(levelname)s:%(message)s",
         "level": "INFO",
+        "log_rotate": None,
+        "log_duration": None,
+        "log_interval": None,
+        "log_maxbytes": None,
+        "log_maxbackup": 1
     }
     if options is not None:
         settings.update(options)
@@ -172,7 +178,24 @@ def setup_logging(options=None):
     kwargs["level"] = level
 
     logfile = settings["file"]
-    if logfile is not None:
-        kwargs["filename"] = logfile
+    log_rotate = settings["log_rotate"]
 
+    if logfile is not None and log_rotate is None:
+        kwargs["filename"] = logfile
+        print("Here's the logfile for case 1...hi there:", logfile)
+        print(kwargs)
+    elif logfile is not None and log_rotate == "SIZE":
+        log_maxbytes = settings["log_maxbytes"]
+        log_maxbackup = settings["log_maxbackup"]
+        kwargs["handlers"] = [RotatingFileHandler(logfile, mode='a', maxBytes=log_maxbytes,
+                                                 backupCount=log_maxbackup)]
+    elif logfile is not None and log_rotate == "TIME":
+        log_duration = settings["log_duration"]
+        log_interval = settings["log_interval"]
+        log_maxbackup = settings["log_maxbackup"]
+        kwargs["handlers"] = [TimedRotatingFileHandler(logfile,
+                                                      when=log_duration,
+                                                      interval=log_interval,
+                                                      backupCount=log_maxbackup)]
+        print("Here's the logfile for case 3:", logfile)
     logging.basicConfig(**kwargs)

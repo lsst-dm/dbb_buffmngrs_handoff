@@ -1,22 +1,35 @@
 database:
-  engine: "sqlite:////path/to/sqlite.db"
+  #engine: "sqlite:////path/to/sqlite.db"
+  engine: "sqlite:////home/brendal4/Documents/LSST/DBB_dev/sqlite.db"
   echo: false
   pool_type: QueuePool
 handoff:
-  buffer: /data/buffer
-  holding: /data/holding
+  #buffer: /data/buffer
+  #holding: /data/holding
+  buffer: /home/brendal4/Documents/LSST/handoff_manager/buffer
+  holding: /home/brendal4/Documents/LSST/handoff_manager/holding
 endpoint:
-  user: jdoe
-  host: example.edu
-  buffer: /data/buffer
-  staging: /data/staging
+  #user: jdoe
+  #host: example.edu
+  #buffer: /data/buffer
+  #staging: /data/staging
+  user: brendal4
+  host: lsst-login03.ncsa.illinois.edu
+  buffer: /home/brendal4/data/endpoint/buffer
+  staging: /home/brendal4/data/endpoint/staging
   commands:
     remote: "ssh {user}@{host} \"{command}\""
     transfer: "scp -Bq {file} {user}@{host}:{dest}"
 logging:
   format: "%(asctime)s:%(name)s:%(levelname)s:%(message)s"
-  file: null
+  #file: null
+  file: /home/brendal4/Documents/LSST/DBB_dev/DM-27078/logging_log.txt
   level: INFO
+  log_rotate: TIME
+  log_duration: 'S'
+  log_interval: 1
+  #log_maxbytes: 2000
+  log_maxbackup: 15 
 general:
   chunk_size: 1
   timeout: null
