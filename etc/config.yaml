@@ -25,11 +25,11 @@ logging:
   #file: null
   file: /home/brendal4/Documents/LSST/DBB_dev/DM-27078/logging_log.txt
   level: INFO
-  log_rotate: TIME
-  log_duration: 'S'
-  log_interval: 1
-  #log_maxbytes: 2000
-  log_maxbackup: 15 
+  rotate: TIME
+  when: 'S'
+  interval: 1
+  #maxbytes: 2000
+  backupCount: 15 
 general:
   chunk_size: 1
   timeout: null

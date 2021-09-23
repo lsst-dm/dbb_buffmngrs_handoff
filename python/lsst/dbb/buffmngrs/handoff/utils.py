@@ -141,7 +141,7 @@ def setup_db_conn(config):
     return engine
 
 
-def setup_logging(options=None, **kwargs):
+def setup_logging(options=None):
     """Configure logger.
 
     Parameters
@@ -162,11 +162,11 @@ def setup_logging(options=None, **kwargs):
         "file": None,
         "format": "%(asctime)s:%(name)s:%(levelname)s:%(message)s",
         "level": "INFO",
-        "log_rotate": None,
-        "log_duration": None,
-        "log_interval": None,
-        "log_maxbytes": None,
-        "log_maxbackup": 1
+        "rotate": None,
+        "when": 'H',
+        "interval": 1,
+        "maxbytes": 0,
+        "backupCount": 0
     }
     if options is not None:
         settings.update(options)
@@ -178,24 +178,27 @@ def setup_logging(options=None, **kwargs):
     kwargs["level"] = level
 
     logfile = settings["file"]
-    log_rotate = settings["log_rotate"]
+    if logfile is not None:
+        handler = logging.FileHandler
+        opts = {}
 
-    if logfile is not None and log_rotate is None:
-        kwargs["filename"] = logfile
-        print("Here's the logfile for case 1...hi there:", logfile)
-        print(kwargs)
-    elif logfile is not None and log_rotate == "SIZE":
-        log_maxbytes = settings["log_maxbytes"]
-        log_maxbackup = settings["log_maxbackup"]
-        kwargs["handlers"] = [RotatingFileHandler(logfile, mode='a', maxBytes=log_maxbytes,
-                                                 backupCount=log_maxbackup)]
-    elif logfile is not None and log_rotate == "TIME":
-        log_duration = settings["log_duration"]
-        log_interval = settings["log_interval"]
-        log_maxbackup = settings["log_maxbackup"]
-        kwargs["handlers"] = [TimedRotatingFileHandler(logfile,
-                                                      when=log_duration,
-                                                      interval=log_interval,
-                                                      backupCount=log_maxbackup)]
-        print("Here's the logfile for case 3:", logfile)
+        rotate = settings["rotate"]
+        if rotate is not None:
+            opts.update({"backupCount": settings["backupCount"]})
+            if rotate.upper() == "SIZE":
+                opts.update({
+                    "maxBytes": settings["maxbytes"],
+                })
+                handler = logging.handlers.RotatingFileHandler
+            elif rotate.upper() == "TIME":
+                opts.update({
+                    "when": settings["when"],
+                    "interval": settings["interval"],
+                })
+                handler = logging.handlers.TimedRotatingFileHandler
+            else:
+                raise RuntimeError(f"unknown log rotate method '{rotate}'")
+
+        kwargs["handlers"] = [handler(logfile, **opts)]
+
     logging.basicConfig(**kwargs)
