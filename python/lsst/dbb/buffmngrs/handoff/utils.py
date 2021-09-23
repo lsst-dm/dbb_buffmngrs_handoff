@@ -166,7 +166,7 @@ def setup_logging(options=None):
         "when": 'H',
         "interval": 1,
         "maxbytes": 0,
-        "backupCount": 0
+        "backup_count": 0
     }
     if options is not None:
         settings.update(options)
@@ -184,7 +184,7 @@ def setup_logging(options=None):
 
         rotate = settings["rotate"]
         if rotate is not None:
-            opts.update({"backupCount": settings["backupCount"]})
+            opts.update({"backupCount": settings["backup_count"]})
             if rotate.upper() == "SIZE":
                 opts.update({
                     "maxBytes": settings["maxbytes"],
