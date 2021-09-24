@@ -78,7 +78,8 @@ SCHEMA = {
                 },
                 "when": {
                     "type": "string",
-                    "enum": ['S', 'M', 'H', 'D', "'W0' - 'W6'", 'midnight']
+                    "enum": ['S', 'M', 'H', 'D', 'W0', 'W1', 'W2', 'W3', 'W4',
+                             'W5', 'W6', 'midnight']
                 },
                 "interval": {
                     "type": "integer"

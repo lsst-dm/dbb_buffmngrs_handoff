@@ -23,9 +23,9 @@
 import hashlib
 import importlib
 import logging
+import logging.handlers
 import queue
 import time
-from logging.handlers import TimedRotatingFileHandler, RotatingFileHandler
 
 from sqlalchemy import create_engine
 
@@ -191,16 +191,11 @@ def setup_logging(options=None):
                 })
                 handler = logging.handlers.RotatingFileHandler
             elif rotate.upper() == "TIME":
-                when_opts = {'S', 'M', 'H', 'D', "'W0'-'W6'", 'MIDNIGHT'}
-                if settings["when"].upper() in when_opts:
-                    opts.update({
-                        "when": settings["when"],
-                        "interval": settings["interval"],
-                    })
-                    handler = logging.handlers.TimedRotatingFileHandler
-                else:
-                    raise RuntimeError(f"invalid 'when' option:" \
-                                       f" '{settings['when']}'")
+                opts.update({
+                    "when": settings["when"],
+                    "interval": settings["interval"],
+                })
+                handler = logging.handlers.TimedRotatingFileHandler
             else:
                 raise RuntimeError(f"unknown log rotate method '{rotate}'")
 
