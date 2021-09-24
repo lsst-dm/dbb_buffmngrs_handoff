@@ -191,11 +191,16 @@ def setup_logging(options=None):
                 })
                 handler = logging.handlers.RotatingFileHandler
             elif rotate.upper() == "TIME":
-                opts.update({
-                    "when": settings["when"],
-                    "interval": settings["interval"],
-                })
-                handler = logging.handlers.TimedRotatingFileHandler
+                when_opts = {'S', 'M', 'H', 'D', "'W0'-'W6'", 'MIDNIGHT'}
+                if settings["when"].upper() in when_opts:
+                    opts.update({
+                        "when": settings["when"],
+                        "interval": settings["interval"],
+                    })
+                    handler = logging.handlers.TimedRotatingFileHandler
+                else:
+                    raise RuntimeError(f"invalid 'when' option:" \
+                                       f" '{settings['when']}'")
             else:
                 raise RuntimeError(f"unknown log rotate method '{rotate}'")
 
