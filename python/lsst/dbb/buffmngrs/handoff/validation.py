@@ -70,7 +70,7 @@ SCHEMA = {
                     "enum": ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
                 },
                 "rotate": {
-                    "anyOf":[
+                    "anyOf": [
                         {"type": "string",
                          "enum": ["TIME", "SIZE"]},
                         {"type": "null"}
