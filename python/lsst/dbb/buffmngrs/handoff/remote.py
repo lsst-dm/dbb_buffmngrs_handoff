@@ -233,7 +233,7 @@ class Porter(Command):
                 total += dur
                 for transfer in transfers:
                     transfer.post_start = start.timestamp()
-                    transfer.post_duration = total
+                    transfer.post_duration = total.total_seconds()
                     transfer.status = status
                     transfer.error = stderr
                 if status != 0:
