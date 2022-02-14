@@ -142,9 +142,8 @@ class Porter(Command):
                 filenames = [item.name for item in files]
                 sizes = {item.name: item.size for item in files}
 
-                # Divide files into batches. If batch mode is enabled,
-                # all files grouped into a single batch. Otherwise,
-                # each batch will consist of a single file.
+                # Divide files into batches. If batch mode is disabled, each
+                # batch will consist of a single file.
                 batch_size = len(filenames) if self.batch_mode else 1
                 batches = [filenames[i:i+batch_size]
                            for i in range(0, len(filenames), batch_size)]
@@ -233,7 +232,7 @@ class Porter(Command):
                 total += dur
                 for transfer in transfers:
                     transfer.post_start = start.timestamp()
-                    transfer.post_duration = total
+                    transfer.post_duration = total.total_seconds()
                     transfer.status = status
                     transfer.error = stderr
                 if status != 0:
