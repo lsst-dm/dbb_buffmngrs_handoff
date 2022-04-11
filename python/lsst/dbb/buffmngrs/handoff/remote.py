@@ -145,7 +145,7 @@ class Porter(Command):
                 # Divide files into batches. If batch mode is disabled, each
                 # batch will consist of a single file.
                 batch_size = len(filenames) if self.batch_mode else 1
-                batches = [filenames[i:i+batch_size]
+                batches = [filenames[i:i + batch_size]
                            for i in range(0, len(filenames), batch_size)]
 
                 # Create corresponding number of transfer messages to put in
@@ -249,7 +249,7 @@ class Porter(Command):
                     start = datetime.datetime.now()
                     status, _, stderr, dur = execute(cmd, timeout=self.timeout)
                     transfer.post_start = start.timestamp()
-                    transfer.post_duration = (total+dur).total_seconds()
+                    transfer.post_duration = (total + dur).total_seconds()
                     transfer.status = status
                     transfer.error = stderr
 
